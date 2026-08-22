@@ -42,6 +42,8 @@ def rebuild():
     STATE["receipt"] = receipt_payload("G-RAJ-042", "M07", root, "Sita")
     STATE["verdict"], STATE["last_detail"] = verify_receipt(chain, STATE["receipt"])
 
+rebuild()   # fresh boot must be fully initialized before serving (G2)
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
