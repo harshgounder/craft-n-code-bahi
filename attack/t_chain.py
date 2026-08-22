@@ -395,15 +395,9 @@ def run():
     with open(fp, "w") as f:
         json.dump({"group": "G", "events": [1, 2, 3], "roots": {}}, f)
     cc = BahiChain.load(fp)
-    try:
-        okv, _, whyv = cc.verify()
-        t("VULN.load.events-not-dict verify() crashes", False,
-          "returned %s/%s: expected crash: 'field not in ev' on an int raises TypeError" % (okv, whyv))
-    except TypeError as e:
-        t("VULN.load.events-not-dict verify() crashes", True,
-          "TypeError %r: verify() promises 'NEVER raises on malformed data' but crashes on non-dict event rows" % (e,))
-    except Exception as e:
-        t("VULN.load.events-not-dict verify() crashes", True, "%s: %r" % (type(e).__name__, e))
+    okv, _, whyv = cc.verify()
+    t("SAFE.load.events-not-dict graceful corrupt-file (no crash)", not okv and "corrupt-file" in whyv,
+      "ok=%s why=%s" % (okv, whyv))
     os.unlink(fp)
 
     return R

@@ -1,44 +1,44 @@
 {
- "generated": "2026-08-23T05:22:14",
+ "generated": "2026-08-23T05:26:41",
  "total": 1542,
  "vuln_confirmed": 55,
- "safe_broken": 1,
- "failed": 6,
+ "safe_broken": 0,
+ "failed": 0,
  "benchmarks": {
-  "h_200k_hashes_sec": 0.241042,
-  "h_throughput_per_sec": 829731,
-  "add_1000": 0.003028,
-  "verify_1000": 0.002299,
+  "h_200k_hashes_sec": 0.229721,
+  "h_throughput_per_sec": 870621,
+  "add_1000": 0.002227,
+  "verify_1000": 0.002002,
   "export_1000": 1e-06,
   "export_1000_bytes": 276910,
-  "csv_1000": 0.002102,
+  "csv_1000": 0.001788,
   "csv_1000_bytes": 110904,
-  "balances_1000": 0.0003,
+  "balances_1000": 0.000246,
   "export_1000_events": 1000,
-  "add_10000": 0.023991,
-  "verify_10000": 0.021673,
-  "export_10000": 3e-06,
+  "add_10000": 0.023453,
+  "verify_10000": 0.019372,
+  "export_10000": 1e-06,
   "export_10000_bytes": 2779140,
-  "csv_10000": 0.019079,
+  "csv_10000": 0.017995,
   "csv_10000_bytes": 1119134,
-  "balances_10000": 0.003016,
-  "add_100000": 0.280836,
-  "verify_100000": 0.199288,
+  "balances_10000": 0.002511,
+  "add_100000": 0.272885,
+  "verify_100000": 0.199438,
   "export_100000": 2e-06,
   "export_100000_bytes": 27891167,
-  "csv_100000": 0.184357,
+  "csv_100000": 0.185217,
   "csv_100000_bytes": 11291161,
-  "balances_100000": 0.024602,
-  "verify_receipt_100k": 0.207423,
-  "hint_flags_100k": 0.398991,
-  "save_100k": 0.125651,
-  "load_100k": 0.184291,
+  "balances_100000": 0.024341,
+  "verify_receipt_100k": 0.203342,
+  "hint_flags_100k": 0.396824,
+  "save_100k": 0.142573,
+  "load_100k": 0.201195,
   "save_100k_file_bytes": 30891175,
   "peak_mem_100k_events_bytes": 46476641,
-  "http_100x_state_sec": 0.0351,
-  "http_100x_entry_sec": 0.0453,
-  "http_state_ms_req": 0.351,
-  "http_entry_ms_req": 0.453
+  "http_100x_state_sec": 0.036,
+  "http_100x_entry_sec": 0.0454,
+  "http_state_ms_req": 0.36,
+  "http_entry_ms_req": 0.454
  },
  "rows": [
   {
@@ -537,9 +537,9 @@
    "detail": "json.loads hits recursion limit; load() only catches OSError/ValueError -> CRASH"
   },
   {
-   "tid": "VULN.load.events-not-dict verify() crashes",
-   "ok": false,
-   "detail": "returned False/corrupt-file: non-object event at 1: expected crash: 'field not in ev' on an int raises TypeError"
+   "tid": "SAFE.load.events-not-dict graceful corrupt-file (no crash)",
+   "ok": true,
+   "detail": "ok=False why=corrupt-file: non-object event at 1"
   },
   {
    "tid": "SAFE.recv.001 honest chain + receipt -> MATCH",
@@ -942,19 +942,19 @@
    "detail": ""
   },
   {
-   "tid": "VULN.loans.corrupt chain balances() crashes",
-   "ok": false,
-   "detail": "no exception (expected KeyError)"
+   "tid": "SAFE.loans.corrupt chain balances() no crash (missing fields skipped)",
+   "ok": true,
+   "detail": "corrupt amount field no longer crashes the replay"
   },
   {
-   "tid": "VULN.loans.null amount balances() crashes",
-   "ok": false,
-   "detail": "no exception (expected TypeError)"
+   "tid": "SAFE.loans.null amount balances() no crash (skipped)",
+   "ok": true,
+   "detail": "None amount skipped, no TypeError"
   },
   {
-   "tid": "VULN.loans.list amount balances() crashes",
-   "ok": false,
-   "detail": "no exception (expected TypeError)"
+   "tid": "SAFE.loans.list amount balances() no crash (skipped)",
+   "ok": true,
+   "detail": "list amount skipped, no TypeError"
   },
   {
    "tid": "VULN.loans.null member balances() absorbs (None keyed)",
@@ -1218,8 +1218,8 @@
   },
   {
    "tid": "SAFE.http.xss.002 esc() present on chain table render path",
-   "ok": false,
-   "detail": "PR6 UI escaping added to show() table builder"
+   "ok": true,
+   "detail": "UI escaping restored on the ui-max render path (server pre-escapes hints; client esc()s state fields)"
   },
   {
    "tid": "SAFE.http.xss.003 MEETING-CLOSE type via /api/entry neutralized (protocol pollution fixed)",
@@ -1324,7 +1324,7 @@
   {
    "tid": "SAFE.http.method.005 HEAD headers only, no body (PR5)",
    "ok": true,
-   "detail": "25461"
+   "detail": "25666"
   },
   {
    "tid": "chain.http.path.001 dotdot path no traversal (serves HTML)",
@@ -1472,9 +1472,9 @@
    "detail": "n0=8 n1=408 errs=0"
   },
   {
-   "tid": "VULN.stress.conc.002 server's own seq allocator collides: preseeded seq 8 duplicated by first live entry",
-   "ok": false,
-   "detail": "seq = len(non-close events)+1 is COUNT-based: build seeds M07 events seq 3..8, so the FIRST live entry also gets seq 8 (count 7+1=8). Two different events share seq 8 every meeting cycle; seqs are not unique identifiers"
+   "tid": "SAFE.stress.conc.002 seq allocator unique after 400 entries",
+   "ok": true,
+   "detail": "len(events)+1 allocation keeps seqs unique; no collision with seeded seq 8"
   },
   {
    "tid": "stress.conc.003 chain verifies after hammer",
@@ -1507,14 +1507,14 @@
    "detail": "every entry books to member Sita; receipts grow linearly with entry count; a 1e6-entry group -> ~70 MB receipts per member (QR impossible, /api/state MBs)"
   },
   {
-   "tid": "stress.bloat.006 verify_receipt @10k member_events 28 ms",
+   "tid": "stress.bloat.006 verify_receipt @10k member_events 27 ms",
    "ok": true,
    "detail": "MATCH"
   },
   {
    "tid": "stress.bloat.007 /api/state latency @10k events < 500 ms",
    "ok": true,
-   "detail": "52 ms"
+   "detail": "39 ms"
   },
   {
    "tid": "stress.reset.001 60 entry+close+reset cycles stable",

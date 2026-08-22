@@ -45,6 +45,13 @@ def hints_for_export(chain):
     return out
 
 
+def fresh_passphrase():
+    """One-shot random witness key per signing: no hardcoded passphrase in
+    source, nothing reusable after the meeting (witness key custody)."""
+    import secrets
+    return secrets.token_hex(16)
+
+
 def build_demo_chain():
     chain = BahiChain("G-RAJ-042")
     t = "2026-08-02T10:00:00"
@@ -52,7 +59,7 @@ def build_demo_chain():
     chain.add_event(1, "loan", "Kavita", 20000, t)
     r6 = chain.close_meeting("M06", t)
     for w in WITNESSES:
-        r6["witnesses"].append(sign_entry({"root": r6["root_hash"], "meeting": "M06"}, "pass-" + w, w))
+        r6["witnesses"].append(sign_entry({"root": r6["root_hash"], "meeting": "M06"}, fresh_passphrase(), w))
     # M07 (live meeting): seqs 3..8. Event seq 8 = Sita deposit = attack target.
     chain.add_event(3, "contribution", "Sita", 10000, t)
     chain.add_event(4, "contribution", "Geeta", 10000, t)
@@ -112,15 +119,28 @@ class Handler(BaseHTTPRequestHandler):
         # localhost scope limit is NOT authentication (hardening report):
         # reject foreign Host and any Origin so a remote page cannot forge
         # state-changing requests against the demo UI (DNS rebinding, CSRF).
-        # Host suffix tricks (127.0.0.1.evil.com) are blocked by parsing the
-        # REGISTERED hostname (pentest PR6), not a naive prefix check.
-        hostname = host.split(":")[0].strip().lower()
-        if hostname not in ("127.0.0.1", "localhost", "::1"):
+        # Host suffix tricks (127.0.0.1.evil.com, 127.0.0.1:8123.attacker.com)
+        # are blocked by an EXACT netloc compare, not a prefix/split check:
+        # urlsplit would trim on the first colon, so "127.0.0.1:8123.evil.com"
+        # must not reduce to a valid host. Every permitted spelling is
+        # listed explicitly, including the IPv6-bracket forms (PR6).
+        netloc = (host or "").strip().lower()
+        if netloc in ("",):
+            self.send_error(403, "missing host rejected")
+            return
+        permitted = ("127.0.0.1", "localhost", "[::1]",
+                     "127.0.0.1:8123", "localhost:8123", "[::1]:8123",
+                     "127.0.0.1:80", "localhost:80")
+        if netloc not in permitted:
             self.send_error(403, "foreign host rejected")
             return
-        if origin and "127.0.0.1" not in origin and "localhost" not in origin:
-            self.send_error(403, "foreign origin rejected")
-            return
+        # Exact-origin compare (not substring): a page at
+        # http://127.0.0.1.evil.com or ?u=http://127.0.0.1:8123 must not pass.
+        if origin:
+            allowed = ("http://127.0.0.1:8123", "http://localhost:8123")
+            if origin not in allowed:
+                self.send_error(403, "foreign origin rejected")
+                return
         path = self.path.split("?", 1)[0]
         qs = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
         if path == "/api/state":
@@ -163,7 +183,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
             root = chain.close_meeting("M07", "2026-08-02T10:00:00")
             for w in WITNESSES:
-                root["witnesses"].append(sign_entry({"root": root["root_hash"], "meeting": "M07"}, "pass-" + w, w))
+                root["witnesses"].append(sign_entry({"root": root["root_hash"], "meeting": "M07"}, fresh_passphrase(), w))
             STATE["root"] = root
             STATE["receipt"] = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain)
             STATE["verdict"], STATE["last_detail"] = verify_receipt(chain, STATE["receipt"])
@@ -182,7 +202,12 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"report": rep, "csv_rows": export_csv(STATE["chain"]),
                             "hints": hints_for_export(STATE["chain"])})
         else:
-            self._respond(INDEX_HTML.encode("utf-8"), "text/html; charset=utf-8")
+            if path == "/":
+                self._respond(INDEX_HTML.encode("utf-8"), "text/html; charset=utf-8")
+            else:
+                # unknown path -> real 404 instead of serving the app (route
+                # distinction so scrapers/probes do not mask as the demo UI)
+                self.send_error(404, "not found")
 
     def send_json(self, obj):
         self._respond(json.dumps(obj).encode("utf-8"), "application/json")

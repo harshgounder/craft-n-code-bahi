@@ -286,7 +286,7 @@ class BahiChain:
         try:
             with open(path) as f:
                 d = json.load(f)
-        except (OSError, ValueError) as e:
+        except (OSError, ValueError, RecursionError) as e:
             c.events = []
             c.roots = {"__corrupt__": {"root_hash": "", "root_seq": 0, "ts": "", "witnesses": [], "corrupt": "load: %s" % e}}
             return c
@@ -348,6 +348,10 @@ def verify_receipt(chain, receipt, witness_keys=None):
     """
     if chain.corrupt:
         return False, "corrupt-chain: %s" % (chain.roots.get("__corrupt__", {}).get("corrupt", "unknown"))
+    if not isinstance(receipt, dict):
+        return False, "malformed-receipt"
+    if not isinstance(receipt.get("meeting"), str) or not receipt.get("meeting"):
+        return False, "meeting-missing"
     chain_ok, bad_seq, why = chain.verify()
     if not chain_ok:
         return False, "FORK-AT-EVENT-%s (%s)" % (bad_seq, why)
@@ -370,7 +374,7 @@ def verify_receipt(chain, receipt, witness_keys=None):
         return False, "meeting-close-missing"
     if close_ev[0].get("hash") != receipt.get("root"):
         return False, "FORK-AT-MEETING-%s (close hash recompute)" % receipt.get("meeting")
-    if root_meta["root_hash"] != receipt.get("root"):
+    if root_meta.get("root_hash") != receipt.get("root"):
         return False, "FORK-AT-MEETING-%s" % receipt.get("meeting")
     last_ev = chain.events[-1]
     if last_ev.get("type") != "MEETING-CLOSE" or last_ev.get("seq") != receipt.get("root_seq"):
