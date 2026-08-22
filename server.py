@@ -18,12 +18,31 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from chain import BahiChain, receipt_payload, verify_receipt, MIN_WITNESSES
 from witness import sign_entry
 from loans import balances
-from exporter import audit_report, export_csv
+from exporter import audit_report, export_csv, html_escape, HINT_SEVERITY
 
 PORT = 8123
 STATE = {"chain": None, "root": None, "receipt": None, "verdict": None, "last_detail": ""}
 
 WITNESSES = ("Meera", "Laxmi")
+
+
+def hints_for_export(chain):
+    """Auditor hints as escaped, severity-tagged dicts.
+
+    Server-side escaping (html_escape) is the primary XSS defense for the hints
+    box; the client's esc() stays as a second layer. Severity comes from
+    exporter.HINT_SEVERITY so the new business-logic flags (corpus_insolvency,
+    repeat_borrower, orphan_correction) render with the right visual weight.
+    """
+    out = []
+    for h in audit_report(chain).get("hints", []):
+        out.append({
+            "hint": html_escape(h["hint"]),
+            "meeting": html_escape(h["meeting"]),
+            "evidence": html_escape(h["evidence"]),
+            "severity": HINT_SEVERITY.get(h["hint"], "note"),
+        })
+    return out
 
 
 def build_demo_chain():
@@ -160,7 +179,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"ok": True, "verdict": STATE["verdict"]})
         elif path == "/api/export":
             rep = audit_report(STATE["chain"])
-            self.send_json({"report": rep, "csv_rows": export_csv(STATE["chain"]), "hints": rep.get("hints", [])})
+            self.send_json({"report": rep, "csv_rows": export_csv(STATE["chain"]),
+                            "hints": hints_for_export(STATE["chain"])})
         else:
             self._respond(INDEX_HTML.encode("utf-8"), "text/html; charset=utf-8")
 
@@ -309,6 +329,11 @@ tr.bad td{background:var(--red-soft);color:var(--red);font-weight:700}
 .hints li.serious{border-left-color:var(--red)}
 .hints li.soft{border-left-color:var(--saffron-deep);background:var(--saffron-soft)}
 .hints li svg{width:16px;height:16px;flex:0 0 16px;margin-top:2px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.hints li.note{border-left-color:var(--ink-faint);background:var(--paper-2)}
+.legend{font-size:12px;color:var(--ink-soft);margin:6px 0}
+.legend b{font-weight:700}
+.legend .cr{color:var(--red)}.legend .warn{color:var(--saffron-deep)}.legend .nt{color:var(--ink-soft)}
+
 .hints li>div{display:flex;flex-direction:column;gap:2px}
 .hints li b{font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--red)}
 .hints li.soft b{color:var(--saffron-deep)}
@@ -493,9 +518,9 @@ async function refresh(){
   // hints
   const ex=await (await fetch("/api/export")).json();
   const hz=(ex.hints&&ex.hints.length)?ex.hints:[];
-  const serious=hz.filter(h=>["duplicate_identity","missing_witness","corrupt_chain"].includes(h.hint)).length;
+  const serious=hz.filter(h=>h.severity==="critical").length;
   $("hints").innerHTML=hz.length?hz.map(h=>{
-    const sev=["duplicate_identity","missing_witness","corrupt_chain"].includes(h.hint)?"serious":"soft";
+    const sev=h.severity==="critical"?"serious":(h.severity==="warning"?"soft":"note");
     const ic=sev==="serious"?"<svg viewBox='0 0 24 24'><path d='M12 3L2 20h20L12 3z'/><path d='M12 9v5'/><path d='M12 17.5v.5'/></svg>":"<svg viewBox='0 0 24 24'><circle cx='12' cy='12' r='9'/><path d='M12 8v5'/><path d='M12 16.5v.5'/></svg>";
     return "<li class='"+sev+"'>"+ic+"<div><b>"+h.hint+"</b> · "+h.meeting+"<span class='ev'>"+h.evidence+"</span></div></li>";
   }).join(""):"<li style='border-color:var(--green);background:var(--green-soft)'><b style='color:var(--green)'>no flags</b><span class='ev'>all rules evaluated deterministically</span></li>";

@@ -34,7 +34,9 @@ AFTER witnessing, not mass collusion at entry time. HMAC witness signatures are
 verifiable only by a key holder (see witness.py).
 """
 import hashlib, json
-from witness import verify as _witness_verify, is_valid_sig, sign as _witness_sign
+from witness import (verify as _witness_verify, is_valid_sig, sign as _witness_sign,
+                     verify_sig_ed25519 as _ed_verify, is_valid_ed_sig,
+                     is_valid_verify_key, ed25519_available as _ed_avail)
 
 MIN_WITNESSES = 2
 
@@ -73,12 +75,24 @@ def _norm_amount(v):
 
 
 def _norm_witness(w):
-    """Return (name, sig) for a well-formed witness record, else None."""
+    """Return (name, sig, verify_key) for a well-formed witness record, else None.
+
+    Accepts two record shapes:
+      * legacy HMAC:      {'witness': name, 'sig': <64-hex>}            -> vk None
+      * Ed25519:          {'witness': name, 'verify_key': <64-hex>, 'sig': <b64>}
+    verify_key is None for HMAC records, so downstream crypto checks know which
+    mode applies (Ed25519 -> verify offline with the public key; HMAC -> needs a key).
+    """
     if isinstance(w, dict):
         name = w.get("witness")
         sig = w.get("sig")
-        if isinstance(name, str) and name and is_valid_sig(sig):
-            return (name, sig)
+        vk = w.get("verify_key")
+        if isinstance(name, str) and name:
+            if vk is not None:
+                if is_valid_ed_sig(sig) and is_valid_verify_key(vk):
+                    return (name, sig, vk)
+            elif is_valid_sig(sig):
+                return (name, sig, None)
     return None
 
 
@@ -163,7 +177,10 @@ class BahiChain:
                 raise ValueError("invalid witness record: %r" % (w,))
             if any(s["witness"] == n[0] for s in sigs):
                 raise ValueError("duplicate witness: %r" % (n[0],))
-            sigs.append({"witness": n[0], "sig": n[1]})
+            rec = {"witness": n[0], "sig": n[1]}
+            if n[2] is not None:
+                rec["verify_key"] = n[2]   # Ed25519: keep the public key for offline verify
+            sigs.append(rec)
         self.roots[meeting_id] = {
             "root_hash": ev["hash"],
             "root_seq": ev["seq"],
@@ -173,14 +190,30 @@ class BahiChain:
         return self.roots[meeting_id]
 
     def add_witness(self, meeting_id, payload, passphrase, witness):
-        """Sign and attach a witness record to a closed meeting (convenience
-        for the "close then sign" flow). Returns the record."""
+        """Sign and attach a legacy HMAC witness record to a closed meeting
+        (convenience for the "close then sign" flow). Returns the record."""
         root_meta = self.roots.get(meeting_id)
         if root_meta is None:
             raise ValueError("meeting %r not found" % (meeting_id,))
         if any(w.get("witness") == witness for w in root_meta.get("witnesses", [])):
             raise ValueError("witness %r already signed meeting %r" % (witness, meeting_id))
         rec = {"witness": witness, "sig": _witness_sign(payload, passphrase, witness)}
+        root_meta["witnesses"].append(rec)
+        return rec
+
+    def add_witness_ed25519(self, meeting_id, payload, signing_key_hex, witness):
+        """Sign and attach an Ed25519 witness record to a closed meeting.
+
+        The record carries the witness's PUBLIC key, so any member holding the
+        resulting receipt can verify the signature offline (no shared secret).
+        Returns the record."""
+        from witness import sign_entry_ed25519
+        root_meta = self.roots.get(meeting_id)
+        if root_meta is None:
+            raise ValueError("meeting %r not found" % (meeting_id,))
+        if any(w.get("witness") == witness for w in root_meta.get("witnesses", [])):
+            raise ValueError("witness %r already signed meeting %r" % (witness, meeting_id))
+        rec = sign_entry_ed25519(payload, signing_key_hex, witness)
         root_meta["witnesses"].append(rec)
         return rec
 
@@ -198,6 +231,8 @@ class BahiChain:
         prev = h("GENESIS", self.group_id)
         for i, ev in enumerate(self.events):
             seq = i + 1
+            if not isinstance(ev, dict):
+                return False, seq, "corrupt-file: non-object event at %d" % seq
             for field in ("seq", "type", "member", "amount_paise", "ts", "prev", "hash", "group"):
                 if field not in ev:
                     return False, seq, "corrupt-file: missing field %r at event %d" % (field, seq)
@@ -284,7 +319,8 @@ def receipt_payload(group, meeting_id, root_meta, member, chain=None):
         member_events = [
             {"seq": e["seq"], "hash": e["hash"]}
             for e in chain.events
-            if e.get("member") == member and e.get("type") != "MEETING-CLOSE"
+            if isinstance(e, dict) and e.get("member") == member
+            and e.get("type") != "MEETING-CLOSE"
             and e.get("seq", 0) <= root_meta.get("root_seq", 0)
         ]
     witnesses = [dict(w) for w in (root_meta.get("witnesses") or []) if isinstance(w, dict)]
@@ -363,8 +399,8 @@ def verify_receipt(chain, receipt, witness_keys=None):
     # DISTINCT witness names, so one person signing twice cannot self-attest (C1).
     sigs_now = _norm_witnesses(root_meta.get("witnesses"))
     sigs_then = _norm_witnesses(receipt.get("witnesses"))
-    now_names = {n for n, _ in sigs_now}
-    then_names = {n for n, _ in sigs_then}
+    now_names = {n for n, _, _ in sigs_now}
+    then_names = {n for n, _, _ in sigs_then}
     if len(then_names) < MIN_WITNESSES:
         return False, "quorum-fail: %d distinct witness(es)" % len(then_names)
     if len(now_names) < MIN_WITNESSES:
@@ -372,15 +408,25 @@ def verify_receipt(chain, receipt, witness_keys=None):
     if not set(sigs_then).issubset(set(sigs_now)):
         return False, "witness-signature-differs"
 
-    # cryptographic verification (optional but strongly recommended)
-    if witness_keys is not None:
-        payload = {"root": receipt.get("root"), "meeting": receipt.get("meeting")}
-        for name, sig in sigs_then:
-            key = witness_keys.get(name)
-            if key is None:
-                return False, "witness-key-missing: %s" % name
-            if not _witness_verify(payload, sig, key, name):
+    # Cryptographic verification, per-record mode dispatch:
+    #   * Ed25519 records (verify_key present) are ALWAYS verified — any member
+    #     can do this offline with only the public key (no secret, no custody).
+    #     This is the fix for the HMAC-symmetric caveat.
+    #   * Legacy HMAC records are verified only when `witness_keys` is supplied
+    #     (key holder); without keys the check stays structural (quorum + subset).
+    payload = {"root": receipt.get("root"), "meeting": receipt.get("meeting")}
+    for name, sig, vk in sigs_then:
+        if vk is not None:
+            if not _ed_verify(payload, sig, vk):
                 return False, "witness-signature-invalid: %s" % name
+            continue
+        if witness_keys is None:
+            continue
+        key = witness_keys.get(name)
+        if key is None:
+            return False, "witness-key-missing: %s" % name
+        if not _witness_verify(payload, sig, key, name):
+            return False, "witness-signature-invalid: %s" % name
     return True, "MATCH"
 
 

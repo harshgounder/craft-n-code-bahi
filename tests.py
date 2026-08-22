@@ -298,5 +298,80 @@ t("B2 corpus insolvency hint", "corpus_insolvency" in hints, hints)
 t("B1 repeat borrower hint", "repeat_borrower" in hints, hints)
 t("B3 orphan correction hint", "orphan_correction" in hints, hints)
 
+# ------------------------------------------------- Ed25519 witness signatures
+# The HMAC-symmetric caveat: offline members can verify an Ed25519 witness
+# signature with ONLY the public key embedded in the receipt (no shared secret).
+from witness import (generate_keypair as _gen, sign_entry_ed25519 as _sed,
+                     verify_sig_ed25519 as _ved, ed25519_available as _ea,
+                     is_valid_verify_key as _ivk, is_valid_ed_sig as _ies)
+from chain import BahiChain as _BC
+
+def _ed_chain():
+    c = _BC("G-ED")
+    for i in range(1, 4):
+        c.add_event(i, "contribution", "Sita", 10000, "t")
+    root = c.close_meeting("M1", "t")
+    kps = {"Meera": _gen(), "Laxmi": _gen()}
+    for name, kp in kps.items():
+        root["witnesses"].append(_sed({"root": root["root_hash"], "meeting": "M1"},
+                                      kp["signing_key"], name))
+    return c, root, kps
+
+t("ed25519 backend present (cryptography)", _ea())
+
+# E1: offline verify MATCH — a member holding ONLY the receipt (no keys) can
+#     cryptographically verify every witness signature via the embedded public key.
+c, root, kps = _ed_chain()
+ok, det = verify_receipt(c, receipt_payload("G-ED", "M1", root, "Sita", chain=c))
+t("E1 ed25519 offline verify -> MATCH (no witness_keys)", ok and det == "MATCH", det)
+
+# E2: well-formed keypair + signature encoding
+kp = _gen()
+t("E2 keypair verify_key is 64-hex", _ivk(kp["verify_key"]))
+sig = _sed({"root": "x", "meeting": "y"}, kp["signing_key"], "Meera")
+t("E2 ed25519 sig is valid base64", _ies(sig["sig"]))
+t("E2 ed25519 round-trip verify", _ved({"root": "x", "meeting": "y"}, sig["sig"], kp["verify_key"]))
+
+# E3: witness signed the WRONG payload (root R2 vs receipt R1). Signature is
+#     well-formed and subset-matches, but crypto verification fails offline.
+c, root, kps = _ed_chain()
+r = receipt_payload("G-ED", "M1", root, "Sita", chain=c)
+forged = _sed({"root": "0" * 64, "meeting": "M1"}, kps["Meera"]["signing_key"], "Meera")
+root["witnesses"][0] = forged                      # swap into chain too
+r["witnesses"][0] = dict(forged)                    # and receipt (subset passes)
+ok, det = verify_receipt(c, r)
+t("E3 wrong-payload ed25519 sig -> witness-signature-invalid", not ok and "witness-signature-invalid" in det, det)
+
+# E4: an attacker replaces Meera's public key with her OWN and signs with her own
+#     key. Crypto cannot detect this (her signature IS valid under her key) — this
+#     is the identity-binding gap that requires an out-of-band trust anchor (KYC),
+#     documented in docs/PRODUCT-DECISIONS.md. We assert the honest current limit.
+c, root, kps = _ed_chain()
+r = receipt_payload("G-ED", "M1", root, "Sita", chain=c)
+mallory = _gen()
+evil = _sed({"root": root["root_hash"], "meeting": "M1"}, mallory["signing_key"], "Meera")
+root["witnesses"][0] = dict(evil)
+r["witnesses"][0] = dict(evil)
+ok, det = verify_receipt(c, r)
+t("E4 key-substitution passes crypto (documented identity gap)", ok and det == "MATCH", det)
+
+# E5: mixed quorum — one Ed25519, one legacy HMAC. Without witness_keys the
+#     Ed25519 sig is still fully verified, the HMAC sig structural-only.
+c = _BC("G-MIX")
+for i in range(1, 4):
+    c.add_event(i, "contribution", "Sita", 10000, "t")
+root = c.close_meeting("M1", "t")
+root["witnesses"].append(_sed({"root": root["root_hash"], "meeting": "M1"},
+                              _gen()["signing_key"], "Meera"))
+from witness import sign as _sig
+root["witnesses"].append({"witness": "Laxmi", "sig": _sig({"root": root["root_hash"], "meeting": "M1"}, "pass-Laxmi", "Laxmi")})
+ok, det = verify_receipt(c, receipt_payload("G-MIX", "M1", root, "Sita", chain=c),
+                         witness_keys={"Laxmi": "pass-Laxmi"})
+t("E5 mixed ed25519+hmac quorum -> MATCH", ok and det == "MATCH", det)
+# ...and with the WRONG hmac key the hmac half fails
+ok, det = verify_receipt(c, receipt_payload("G-MIX", "M1", root, "Sita", chain=c),
+                         witness_keys={"Laxmi": "WRONG"})
+t("E5 mixed quorum wrong hmac key -> invalid", not ok and "witness-signature-invalid" in det, det)
+
 print("\n%d/%d PASSED (%d failed)" % (PASS, PASS + FAIL, FAIL))
 sys.exit(0 if FAIL == 0 else 1)
