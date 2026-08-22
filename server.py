@@ -48,6 +48,10 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
 
+    def do_HEAD(self):
+        # probes (lie-hunt G3) send HEAD; serve the same headers as GET
+        self.do_GET()
+
     def do_GET(self):
         if self.path.startswith("/api/state"):
             self.send_json({
