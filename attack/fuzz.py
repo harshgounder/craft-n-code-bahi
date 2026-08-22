@@ -78,30 +78,100 @@ def run():
               "why=%s: group field is excluded from the per-event hash -> tamper passes verify()" % why)
         else:
             t("fuzz.P3.%04d tamper %s@%d detected" % (i, field, idx), not ok, "why=%s" % why)
-    # P4: random mutation + full recompute (+ optional metadata update) -> receipt MATCHes
+    # P4a: bound receipt catches edit+recompute of the MEMBER'S OWN events (PR4 fix verified)
     for i in range(ITERS):
         c = random_chain()
         if not c.roots:
             c = random_chain()
         mid = sorted(c.roots)[-1]
-        if rng.random() < 0.5 and c.events:
+        rs = c.roots[mid]["root_seq"]
+        pool = [e["member"] for e in c.events if e.get("type") != "MEETING-CLOSE" and e.get("seq", 0) <= rs]
+        if not pool:
+            continue
+        member = rng.choice(pool)
+        rec = receipt_payload(c.group_id, mid, c.roots[mid], member, c)
+        own = [i for i, e in enumerate(c.events) if e.get("member") == member and e.get("type") != "MEETING-CLOSE"]
+        if not own:
+            continue
+        c.events[rng.choice(own)]["amount_paise"] = rng.randint(1, 10**6)
+        full_recompute(c)
+        ok, det = verify_receipt(c, rec)
+        t("fuzz.P4a.%04d bound receipt catches OWN-event edit+recompute (PR4 FIX verified)" % i, not ok, "det=%s" % det)
+    # P4d: edit+recompute of a NON-member event AFTER the member's last event -> MATCH (binding blind spot)
+    for i in range(ITERS):
+        c = random_chain()
+        if not c.roots:
+            c = random_chain()
+        mid = sorted(c.roots)[-1]
+        rs = c.roots[mid]["root_seq"]
+        pool = [e["member"] for e in c.events if e.get("type") != "MEETING-CLOSE" and e.get("seq", 0) <= rs]
+        if not pool:
+            continue
+        member = rng.choice(pool)
+        rec = receipt_payload(c.group_id, mid, c.roots[mid], member, c)
+        own_seqs = {e["seq"] for e in c.events if e.get("member") == member and e.get("type") != "MEETING-CLOSE"}
+        last_own = max(own_seqs) if own_seqs else None
+        targets = [i for i, e in enumerate(c.events)
+                   if e.get("type") != "MEETING-CLOSE" and e.get("member") != member
+                   and e.get("seq", 0) > (last_own or 0) and e.get("seq", 0) <= rs]
+        if not targets:
+            continue
+        c.events[rng.choice(targets)]["amount_paise"] = rng.randint(1, 10**6)
+        full_recompute(c)
+        ok, det = verify_receipt(c, rec)
+        t("fuzz.P4d.%04d NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)" % i,
+          ok and det == "MATCH",
+          "det=%s: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes" % det)
+    # P4c: mutating the MEETING-CLOSE event itself + recompute -> still MATCH (root pins metadata, not the close)
+    for i in range(ITERS):
+        c = random_chain()
+        if not c.roots:
+            c = random_chain()
+        mid = sorted(c.roots)[-1]
+        rs = c.roots[mid]["root_seq"]
+        pool = [e["member"] for e in c.events if e.get("type") != "MEETING-CLOSE" and e.get("seq", 0) <= rs]
+        if not pool:
+            continue
+        rec = receipt_payload(c.group_id, mid, c.roots[mid], rng.choice(pool), c)
+        close_idx = [i for i, e in enumerate(c.events) if e.get("type") == "MEETING-CLOSE" and e.get("seq") == rs]
+        if not close_idx:
+            continue
+        c.events[close_idx[0]]["ts"] = "1970-01-01T00:00:00"
+        full_recompute(c)
+        ok, det = verify_receipt(c, rec)
+        t("fuzz.P4c.%04d close-event edit + recompute -> bound receipt MATCHes (root pin hole)" % i,
+          ok and det == "MATCH",
+          "det=%s: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent" % det)
+    # P4b: LEGACY receipts (no member_events) still MATCH under recompute
+    for i in range(ITERS):
+        c = random_chain()
+        if not c.roots:
+            c = random_chain()
+        mid = sorted(c.roots)[-1]
+        rs = c.roots[mid]["root_seq"]
+        pool = [e["member"] for e in c.events if e.get("type") != "MEETING-CLOSE" and e.get("seq", 0) <= rs]
+        if not pool:
+            continue
+        rec = receipt_payload(c.group_id, mid, c.roots[mid], rng.choice(pool))   # no chain -> legacy
+        if c.events:
             c.events[rng.randrange(len(c.events))]["amount_paise"] = rng.randint(1, 10**6)
         full_recompute(c)
-        if rng.random() < 0.5:
-            c.roots[mid]["root_hash"] = c.events[-1]["hash"]
-        rec = receipt_payload(c.group_id, mid, c.roots[mid], rng.choice(MEMBERS))
         ok, det = verify_receipt(c, rec)
-        t("fuzz.P4.%04d recompute attack -> receipt MATCH (finding)" % i, ok and det == "MATCH",
-          "det=%s: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail" % det)
-    # P5: honest receipt always MATCHes its own chain (LAST meeting only)
+        t("fuzz.P4b.%04d legacy receipt still MATCHes under recompute (finding persists)" % i, ok and det == "MATCH",
+          "det=%s: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts" % det)
+    # P5: honest bound receipt for an EXISTING member always MATCHes (LAST meeting)
     for i in range(ITERS):
         c = random_chain()
         if not c.roots:
             c = random_chain()
         mid = sorted(c.roots)[-1]
-        rec = receipt_payload(c.group_id, mid, c.roots[mid], rng.choice(MEMBERS))
+        rs = c.roots[mid]["root_seq"]
+        pool = [e["member"] for e in c.events if e.get("type") != "MEETING-CLOSE" and e.get("seq", 0) <= rs]
+        if not pool:
+            continue
+        rec = receipt_payload(c.group_id, mid, c.roots[mid], rng.choice(pool), c)
         ok, det = verify_receipt(c, rec)
-        t("fuzz.P5.%04d honest receipt MATCH" % i, ok and det == "MATCH", "det=%s" % det)
+        t("fuzz.P5.%04d honest bound receipt MATCH" % i, ok and det == "MATCH", "det=%s" % det)
     # P6: balances invariant loaned - repaid == outstanding (int math, arbitrary values)
     for i in range(ITERS):
         c = random_chain()
