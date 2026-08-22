@@ -298,5 +298,67 @@ t("B2 corpus insolvency hint", "corpus_insolvency" in hints, hints)
 t("B1 repeat borrower hint", "repeat_borrower" in hints, hints)
 t("B3 orphan correction hint", "orphan_correction" in hints, hints)
 
+# 21-25. v1.4 second/third-degree regression tests
+# [1] per-meeting terminality: an earlier meeting receipt stays valid after a later close
+c = BahiChain("G-RAJ-042")
+c.add_event(1, "loan", "Kavita", 20000, "t")
+r6 = c.close_meeting("M06", "t")
+for w in ("Meera", "Laxmi"):
+    r6["witnesses"].append(sign_entry({"root": r6["root_hash"], "meeting": "M06"}, "pass-" + w, w))
+rcpt6 = receipt_payload("G-RAJ-042", "M06", r6, "Kavita", chain=c)
+c.add_event(3, "contribution", "Sita", 10000, "t")
+c.add_event(4, "contribution", "Geeta", 10000, "t")
+r7 = c.close_meeting("M07", "t")
+for w in ("Meera", "Laxmi"):
+    r7["witnesses"].append(sign_entry({"root": r7["root_hash"], "meeting": "M07"}, "pass-" + w, w))
+ok, det = verify_receipt(c, rcpt6)
+t("v1.4[1] historical receipt valid after later meeting", ok and det == "MATCH", det)
+
+# [1] a trailing unwitnessed append still forks
+c, root = make_chain()
+c.add_event(9, "contribution", "Sita", 10000, "t")  # after M07 close (seq 8)
+ok, det = verify_receipt(c, receipt(c, root))
+t("v1.4[1] trailing append after close -> events-after-close", not ok and "events-after-close" in det, det)
+
+# [6] amount type strictness (no float/str coercion in verify)
+c, root = make_chain()
+c.events[0]["amount_paise"] = 100.0
+ok, bad, why = c.verify()
+t("v1.4[6] float amount -> structured fail", not ok and "non-negative integer" in why, why)
+c, root = make_chain()
+c.events[0]["amount_paise"] = "1_00"
+ok, bad, why = c.verify()
+t("v1.4[6] string amount -> structured fail", not ok and "non-negative integer" in why, why)
+
+# [8] member_events completeness (no omitted deposits)
+c, root = make_chain()
+rcpt = receipt(c, root)
+rcpt["member_events"] = rcpt["member_events"][:1]  # drop 2 of Sita deposits
+ok, det = verify_receipt(c, rcpt)
+t("v1.4[8] partial member_events -> incomplete", not ok and "incomplete" in det, det)
+
+# [8] attendance spoof: member who never attended M07 gets no valid M07 receipt
+c = BahiChain("G-RAJ-042")
+c.add_event(1, "contribution", "Kavita", 10000, "t")
+r6 = c.close_meeting("M06", "t")
+for w in ("Meera", "Laxmi"):
+    r6["witnesses"].append(sign_entry({"root": r6["root_hash"], "meeting": "M06"}, "pass-" + w, w))
+c.add_event(3, "contribution", "Sita", 10000, "t")
+c.add_event(4, "contribution", "Geeta", 10000, "t")
+r7 = c.close_meeting("M07", "t")
+for w in ("Meera", "Laxmi"):
+    r7["witnesses"].append(sign_entry({"root": r7["root_hash"], "meeting": "M07"}, "pass-" + w, w))
+rcpt = receipt_payload("G-RAJ-042", "M07", r7, "Kavita", chain=c)
+ok, det = verify_receipt(c, rcpt)
+t("v1.4[8] attendance spoof -> member-not-in-meeting", not ok and "member-not-in-meeting" in det, det)
+
+# [7] out-of-range integer event surfaced as unattributed_events
+c = BahiChain("G")
+c.add_event(1, "contribution", "Sita", 10000, "t")
+c.close_meeting("M01", "t")
+c.add_event(3, "loan", "Asha", 50000, "t")  # seq 3 > M01 root_seq 2
+hints = {f["hint"] for f in _hf(c)}
+t("v1.4[7] out-of-range event flagged unattributed", "unattributed_events" in hints, hints)
+
 print("\n%d/%d PASSED (%d failed)" % (PASS, PASS + FAIL, FAIL))
 sys.exit(0 if FAIL == 0 else 1)

@@ -22,6 +22,7 @@ HINT_RULES = [
     "corpus_insolvency",
     "repeat_borrower",
     "orphan_correction",
+    "unattributed_events",
 ]
 
 
@@ -61,7 +62,7 @@ def _meetings_with_events(chain):
             ei += 1
         out.append((mid, evs))
         lo = hi
-    return out, bad
+    return out, bad, good[ei:]
 
 
 def hint_flags(chain):
@@ -70,10 +71,13 @@ def hint_flags(chain):
     if getattr(chain, "corrupt", False):
         return [{"hint": "corrupt_chain", "meeting": "-",
                  "evidence": "chain file is unreadable/incomplete"}]
-    meetings, invalid_seq = _meetings_with_events(chain)
+    meetings, invalid_seq, unattributed = _meetings_with_events(chain)
     for e in invalid_seq:
         flags.append({"hint": "invalid_seq", "meeting": "-",
                       "evidence": "event seq %r is not an integer" % (e.get("seq"),)})
+    if unattributed:
+        flags.append({"hint": "unattributed_events", "meeting": "-",
+                      "evidence": "%d event(s) outside any meeting seq range" % len(unattributed)})
     for mid, evs in meetings:
         meta = chain.roots.get(mid, {})
         ws = meta.get("witnesses") or []

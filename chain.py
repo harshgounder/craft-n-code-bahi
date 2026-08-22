@@ -203,9 +203,9 @@ class BahiChain:
                     return False, seq, "corrupt-file: missing field %r at event %d" % (field, seq)
             if ev.get("group") != self.group_id:
                 return False, seq, "corrupt-file: group field mismatch at event %d" % seq
-            amt = _norm_amount(ev["amount_paise"])
-            if amt is None:
-                return False, seq, "corrupt-file: bad amount at event %d" % seq
+            amt = ev["amount_paise"]
+            if isinstance(amt, bool) or not isinstance(amt, int) or amt < 0:
+                return False, seq, "corrupt-file: amount_paise must be a non-negative integer at event %d" % seq
             if isinstance(ev["seq"], bool) or not isinstance(ev["seq"], int) or ev["seq"] != seq:
                 return False, seq, "corrupt-file: bad seq at event %d (expected %d)" % (seq, seq)
             recomputed = h(ev["prev"], self.group_id, ev["seq"], ev["type"], ev["member"], amt, ev["ts"])
@@ -336,27 +336,36 @@ def verify_receipt(chain, receipt, witness_keys=None):
         return False, "FORK-AT-MEETING-%s (close hash recompute)" % receipt.get("meeting")
     if root_meta["root_hash"] != receipt.get("root"):
         return False, "FORK-AT-MEETING-%s" % receipt.get("meeting")
+    # per-meeting terminality: the LAST event must be a close of SOME meeting
+    # (no trailing, unwitnessed append). A later meeting must NOT invalidate
+    # an earlier meeting's receipt.
     last_ev = chain.events[-1]
-    if last_ev.get("type") != "MEETING-CLOSE" or last_ev.get("seq") != receipt.get("root_seq"):
+    if not isinstance(last_ev, dict) or last_ev.get("type") != "MEETING-CLOSE":
         return False, "events-after-close"
     member = receipt.get("member", "")
     if not isinstance(member, str) or not member:
         return False, "member-missing"
-    # member binding (R1 hardened): a receipt must carry member_events proving
-    # the member's own line items. A legacy receipt without member_events proves
-    # only "member exists", which is not a receipt. Reject it.
+    # member binding: the receipt must carry the member's COMPLETE per-meeting
+    # event set (no omission, no inflation, no cross-meeting attendance spoof).
     member_events = receipt.get("member_events")
-    if member_events is None:
-        return False, "member_events-missing (legacy receipt unsupported)"
-    if not member_events:
-        return False, "member-no-events"
-    chain_index = {(e.get("seq"), e.get("hash")) for e in chain.events}
-    seq_to_member = {e.get("seq"): e.get("member") for e in chain.events}
-    for me in member_events:
-        if seq_to_member.get(me.get("seq")) != member:
-            return False, "member-event-does-not-belong"
-        if (me.get("seq"), me.get("hash")) not in chain_index:
-            return False, "member-event-missing-or-tampered"
+    if not isinstance(member_events, list):
+        return False, "member_events-missing"
+    root_seq = receipt.get("root_seq")
+    if isinstance(root_seq, bool) or not isinstance(root_seq, int):
+        return False, "member_events-missing"
+    # this meeting's seq range is (previous meeting's root_seq, this one]
+    prev_seq = max([m.get("root_seq", 0) for m in chain.roots.values()
+                    if isinstance(m, dict) and isinstance(m.get("root_seq"), int)
+                    and m.get("root_seq") < root_seq], default=0)
+    expected = {(e.get("seq"), e.get("hash"))
+                for e in chain.events
+                if e.get("member") == member and e.get("type") != "MEETING-CLOSE"
+                and prev_seq < e.get("seq", 0) <= root_seq}
+    got = {(me.get("seq"), me.get("hash")) for me in member_events if isinstance(me, dict)}
+    if not expected:
+        return False, "member-not-in-meeting"
+    if got != expected:
+        return False, "member-events-incomplete-or-tampered"
 
     # witnesses: normalize to (name, sig) pairs; malformed entries are dropped,
     # so arbitrary strings can never count toward quorum (A02). Quorum counts
