@@ -54,6 +54,6 @@ Python 3 stdlib only (http.server, hashlib, json). Single meeting device,
 offline, deterministic: same files produce the same bytes and the same
 verdict on any laptop.
 
-Built for Craft N Code 2026 Round 1 (PS-18, SHG Digital Ledger). All
+Built for Craft N Code 2026 Round 1 (PS-17, SHG Digital Ledger). All
 research claims traceable to the war-room corpus (21-statement
 startup-diligence wave + SHG-specific deep research).
