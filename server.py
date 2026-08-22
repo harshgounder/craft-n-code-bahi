@@ -128,8 +128,11 @@ class Handler(BaseHTTPRequestHandler):
             chain = STATE["chain"]
             member = "Sita"
             try:
-                chain.add_event(len([e for e in chain.events if e["type"] != "MEETING-CLOSE"]) + 1,
-                                etype, member, paise, "2026-08-02T10:00:00")
+                # monotonic seq allocator: max(seq)+1, never collides with
+                # preseeded seqs (PR9 stress.conc.002). add_event validates
+                # seq ordering internally.
+                nxt = max(e["seq"] for e in chain.events) + 1
+                chain.add_event(nxt, etype, member, paise, "2026-08-02T10:00:00")
             except ValueError as e:
                 self.send_json({"ok": False, "detail": str(e)})
                 return

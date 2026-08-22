@@ -79,7 +79,8 @@ def hint_flags(chain):
 def audit_report(chain):
     st = audit_status(chain)
     meetings = [{"id": mid, "root_hash": m["root_hash"], "root_seq": m["root_seq"],
-                 "witnesses": m.get("witnesses", [])} for mid, m in chain.roots.items()]
+                 "witnesses": m.get("witnesses", [])} for mid, m in chain.roots.items()
+                if isinstance(m, dict) and m.get("root_seq") is not None]  # PR9: partial roots crash
     return {"group": chain.group_id, "chain_ok": st["chain_ok"],
             "first_bad_seq": st["first_bad_seq"], "why": st["why"],
             "meetings": meetings, "hints": hint_flags(chain)}
@@ -89,6 +90,12 @@ def export_csv(chain):
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["seq", "etype", "member", "amount_paise", "ts", "hash"])
+    # CSV formula injection guard (PR9): prefix dangerous cells with a
+    # single quote so =,+,-,@ cells export as text, never as formulas.
+    def safe(s):
+        s = str(s)
+        return "'" + s if s[:1] in ("=", "+", "-", "@") else s
     for e in chain.events:
-        w.writerow([e["seq"], e["type"], e["member"], e["amount_paise"], e["ts"], e["hash"]])
+        w.writerow([e["seq"], safe(e["type"]), safe(e["member"]),
+                    e["amount_paise"], safe(e["ts"]), e["hash"]])
     return buf.getvalue()

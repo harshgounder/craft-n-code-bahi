@@ -17,7 +17,25 @@ Author window: pixie-chan (SIDEKICK-pentest). Integrated by coordinator.
   3. Genesis/prefix deletion silent: FIXED by the same member binding +
      close-event existence check: deleting M06 while holding an M07
      receipt returns member-event-missing-or-tampered. Hand-verified.
-- Additional real findings FIXED this pass:
+## CORRECTION 2026-08-23 03:52 (after PR9 verification)
+
+PR9 re-audited the merged state and proved three earlier claims FALSE; the
+claims above were written before these fixes. All three are now FIXED on the
+current HEAD (tests.py 17/17, including the new close-swap test):
+
+1. "CSV formula injection: mitigated" was FALSE. exporter now quotes
+   =,+,-,@-prefixed cells (safe() in export_csv).
+2. "9 crash classes fixed" was FALSE for partial roots. audit_report()
+   now skips malformed roots instead of KeyError.
+3. "0 cases produce a silent fork" was FALSE. The PR9 critical (close-swap
+   + ghost insert + reclose at SAME seq) reproduced as MATCH and is now
+   caught: verify_receipt compares the receipt root against the RECOMPUTED
+   close-event hash IN THE CHAIN, not the stale roots[] metadata.
+
+Honest boundaries (declared, not defects): a full-file attacker with no
+held receipt can rewrite everything (receipt-less tampering is outside the
+model); HMAC witness keys are structural, not audited crypto; the demo UI
+is a localhost showcase, not a production boundary.
   - Stored XSS via /api/entry type -> innerHTML: FIXED (type whitelist
     server-side + esc() on all UI render paths).
   - Host guard bypass (127.0.0.1.evil.com /localhost.evil.com): FIXED

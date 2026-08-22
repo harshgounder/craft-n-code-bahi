@@ -140,8 +140,8 @@ for ev in c.events:                  # attacker re-links the whole chain
     ev["hash"] = h(ev["prev"], ev["seq"], ev["type"], ev["member"], ev["amount_paise"], ev["ts"])
     prev = ev["hash"]
 ok, det = verify_receipt(c, r14)
-t("consistent rewrite caught by member binding -> member-event-missing-or-tampered",
-  not ok and "member-event-missing-or-tampered" in det, det)
+t("consistent rewrite caught (close-hash recompute fires first)",
+  not ok and ("member-event-missing-or-tampered" in det or "close hash recompute" in det), det)
 
 # 15. member binding: receipt bound to a member with no events fails
 c, root = make_chain()
@@ -149,6 +149,30 @@ r15 = receipt_payload("G-RAJ-042", "M07", root, "Nobody", chain=c)
 ok, det = verify_receipt(c, r15)
 t("member with no events -> member-no-events-or-missing",
   not ok and ("member-" in det), det)
+
+# 16. THE PR9 CRITICAL: close-swap + ghost insert + reclose at SAME seq.
+#     Attacker keeps Sita's events byte-identical, injects a ghost
+#     contribution, replaces the close at the original seq, relinks all.
+from chain import h as _h
+c, root = make_chain()
+r16 = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
+orig = root["root_seq"]
+c2 = BahiChain("G-RAJ-042")
+c2.roots = dict(c.roots)                                   # stale metadata kept
+c2.events = [dict(e) for e in c.events]
+c2.events = [e for e in c2.events if not (e["type"] == "MEETING-CLOSE" and e["seq"] == orig)]
+ghost = {"seq": 99, "type": "contribution", "member": "Ghost", "amount_paise": 10000000,
+         "ts": "2026-08-02T10:00:00", "group": "G-RAJ-042", "prev": c2.events[-1]["hash"],
+         "hash": _h(c2.events[-1]["hash"], 99, "contribution", "Ghost", 10000000, "2026-08-02T10:00:00")}
+c2.events.append(ghost)
+nc = {"seq": orig, "type": "MEETING-CLOSE", "member": "__root__", "amount_paise": 0,
+      "ts": "2026-08-02T10:00:00", "group": "G-RAJ-042", "prev": ghost["hash"],
+      "hash": _h(ghost["hash"], orig, "MEETING-CLOSE", "__root__", 0, "2026-08-02T10:00:00")}
+c2.events.append(nc)
+okc, _, _ = c2.verify()
+ok, det = verify_receipt(c2, r16)
+t("close-swap+ghost (PR9 critical) -> FORK via close-hash recompute",
+  okc and not ok and "close hash recompute" in det, det)
 
 print("\n%d/%d PASSED (%d failed)" % (PASS, PASS + FAIL, FAIL))
 sys.exit(0 if FAIL == 0 else 1)

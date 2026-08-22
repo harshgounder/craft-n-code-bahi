@@ -207,6 +207,17 @@ def verify_receipt(chain, receipt):
     close_seqs = [e["seq"] for e in chain.events if e.get("type") == "MEETING-CLOSE"]
     if receipt.get("root_seq") not in close_seqs:
         return False, "meeting-close-missing"
+    # THE CRITICAL TIE (PR9, pixie-chan): the receipt root must equal the
+    # RECOMPUTED close event hash IN THE CHAIN, not the stale roots[]
+    # metadata. An attacker with full file control can delete the close,
+    # inject ghost rows, re-append a close at the SAME seq and rewrite
+    # roots[] consistently; only the recomputed close hash exposes it.
+    close_ev = [e for e in chain.events
+                if e.get("type") == "MEETING-CLOSE" and e.get("seq") == receipt.get("root_seq")]
+    if not close_ev:
+        return False, "meeting-close-missing"
+    if close_ev[0].get("hash") != receipt.get("root"):
+        return False, "FORK-AT-MEETING-%s (close hash recompute)" % receipt.get("meeting")
     if root_meta["root_hash"] != receipt.get("root"):
         return False, "FORK-AT-MEETING-%s" % receipt.get("meeting")
     # terminality: nothing may follow this meeting's close event; a fake
