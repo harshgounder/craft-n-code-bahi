@@ -16,13 +16,13 @@ def hint_flags(chain):
     flags = []
     per_meeting = {}
     for ev in chain.events:
-        if ev["etype"] == "MEETING-CLOSE":
+        if ev["type"] == "MEETING-CLOSE":
             continue
         per_meeting.setdefault(ev["seq"] // 1000, []).append(ev)
     # evaluation uses the whole chain; keep rules over all events + roots
     meetings = chain.roots
     for mid, meta in meetings.items():
-        evs = [e for e in chain.events if e["etype"] != "MEETING-CLOSE"]
+        evs = [e for e in chain.events if e["type"] != "MEETING-CLOSE"]
         if len(meta.get("witnesses", [])) < 2:
             flags.append({"hint": "missing_witness", "meeting": mid,
                           "evidence": "close signed by %d witness(es)" % len(meta.get("witnesses", []))})
@@ -33,11 +33,11 @@ def hint_flags(chain):
             if paired[key] == 2:
                 flags.append({"hint": "duplicate_identity", "meeting": mid,
                               "evidence": "%s Rs %d twice" % (e["member"], e["amount_paise"] // 100)})
-        corrections = [e for e in evs if e["etype"] == "correction"]
+        corrections = [e for e in evs if e["type"] == "correction"]
         if len(corrections) >= 4:
             flags.append({"hint": "reversal_burst", "meeting": mid,
                           "evidence": "%d correction events" % len(corrections)})
-        loans = [e for e in evs if e["etype"] == "loan"]
+        loans = [e for e in evs if e["type"] == "loan"]
         if loans:
             top = max(loans, key=lambda e: e["amount_paise"])
             total = sum(e["amount_paise"] for e in loans)
@@ -58,5 +58,5 @@ def export_csv(chain):
     lines = ["seq,etype,member,amount_paise,ts,hash"]
     for e in chain.events:
         lines.append("%d,%s,%s,%d,%s,%s" % (
-            e["seq"], e["etype"], e["member"], e["amount_paise"], e["ts"], e["hash"]))
+            e["seq"], e["type"], e["member"], e["amount_paise"], e["ts"], e["hash"]))
     return "\n".join(lines) + "\n"

@@ -15,6 +15,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from chain import BahiChain, receipt_payload, verify_receipt
 from witness import sign
 from loans import balances, format_rupees
+from exporter import audit_report, export_csv
 
 PORT = 8123
 STATE = {"chain": None, "receipt": None, "verdict": None, "last_detail": ""}
@@ -63,6 +64,11 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path.startswith("/api/reset"):
             rebuild()
             self.send_json({"ok": True, "verdict": STATE["verdict"]})
+        elif self.path.startswith("/api/export"):
+            # federation audit export: JSON (schema-stable) + CSV text
+            rep = audit_report(STATE["chain"])
+            csv = export_csv(STATE["chain"])
+            self.send_json({"report": rep, "csv_rows": csv, "hints": rep.get("hints", [])})
         else:
             html = INDEX_HTML
             self.send_response(200)
@@ -100,7 +106,7 @@ INDEX_HTML = """<!doctype html>
  th{background:#eee7d8}
  .hint{font-size:12px;color:#7c1d1d;margin:2px 0}
 </style></head><body>
-<h1>BAHI &mdash; the witnessed ledger</h1>
+<h1>BAHI - the witnessed ledger</h1>
 <div class="sub">G-RAJ-042 &middot; Weekly meeting M07 &middot; offline &middot; pure hash math</div>
 
 <div class="card">
@@ -116,7 +122,7 @@ INDEX_HTML = """<!doctype html>
 </div>
 
 <div class="card">
- <div><b>Member receipt (Sita)</b> &mdash; printed QR equivalent</div>
+ <div><b>Member receipt (Sita)</b> - printed QR equivalent</div>
  <div class="mono" id="receiptbox">...</div>
  <button class="btn attack" onclick="attack()">ATTACK: edit meeting M07, Rs 100 &rarr; Rs 10</button>
 </div>
@@ -137,10 +143,10 @@ INDEX_HTML = """<!doctype html>
 <script>
 function entry(type,paise){fetch('/api/state').then(r=>r.json()).then(s=>{
  var line="";
- if(type==='contribution')line="Sita deposits Rs "+(paise/100)+" &mdash; voice repeats: &ldquo;Sita, contribution, one hundred rupees&rdquo; &mdash; green tick";
- if(type==='loan')line="Asha borrows Rs "+(paise/100)+" at group interest &mdash; voice repeats &mdash; green tick";
- if(type==='repayment')line="Kavita repays Rs "+(paise/100)+" &mdash; voice repeats &mdash; green tick";
- if(type==='correction')line="Correction flagged &mdash; reversal + replacement only, no edits";
+ if(type==='contribution')line="Sita deposits Rs "+(paise/100)+" - voice repeats: &ldquo;Sita, contribution, one hundred rupees&rdquo; - green tick";
+ if(type==='loan')line="Asha borrows Rs "+(paise/100)+" at group interest - voice repeats - green tick";
+ if(type==='repayment')line="Kavita repays Rs "+(paise/100)+" - voice repeats - green tick";
+ if(type==='correction')line="Correction flagged - reversal + replacement only, no edits";
  document.getElementById('entryline').innerHTML=line;});
 }
 function closeMeeting(){
@@ -153,8 +159,8 @@ function attack(){fetch('/api/attack').then(r=>r.json()).then(show);}
 function refresh(){fetch('/api/state').then(r=>r.json()).then(show);}
 function show(s){
  var v=document.getElementById('verdict');
- if(s.verdict){v.className='verdict ok';v.textContent='VERDICT: MATCH &mdash; receipt and books agree';}
- else{v.className='verdict bad';v.textContent='VERDICT: '+s.detail+' &mdash; receipt FAILS';}
+ if(s.verdict){v.className='verdict ok';v.textContent='VERDICT: MATCH - receipt and books agree';}
+ else{v.className='verdict bad';v.textContent='VERDICT: '+s.detail+' - receipt FAILS';}
  var tbl=document.getElementById('loanstable'),h='<tr><th>Member</th><th>Loaned</th><th>Repaid</th><th>Outstanding</th></tr>';
  Object.values(s.balances).forEach(b=>{h+='<tr><td>'+b.member+'</td><td>Rs '+(b.loaned_paise/100)+'</td><td>Rs '+(b.repaid_paise/100)+'</td><td><b>Rs '+(b.outstanding_paise/100)+'</b></td></tr>';});
  tbl.innerHTML=h;

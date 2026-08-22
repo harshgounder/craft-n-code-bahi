@@ -49,7 +49,8 @@ class BahiChain:
         return ev
 
     def close_meeting(self, meeting_id, ts):
-        ev = self.add_event(len(self.events), "MEETING-CLOSE", "__root__", 0, ts)
+        # distinct seq: never collide with the last contribution event
+        ev = self.add_event(len(self.events) + 1, "MEETING-CLOSE", "__root__", 0, ts)
         self.roots[meeting_id] = {
             "root_hash": ev["hash"],
             "root_seq": ev["seq"],
