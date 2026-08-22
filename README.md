@@ -7,6 +7,9 @@ Offline member-witnessed SHG ledger. Every entry goes into a SHA-256 chain, ever
 ## How it works
 - Local SHA-256 event chain: edit anything in the past, every later hash breaks.
 - Meeting close: 2+ members sign the root hash (quorum).
+- Witness signatures are HMAC (zero-dependency) or **Ed25519** (asymmetric): with
+  Ed25519 a member verifies a witness signature offline using only the public key
+  on the receipt — no shared secret. See `witness.py` + `demo_ed25519.py`.
 - Every member receives a QR receipt: group, meeting, her name, root, signatures.
 - Verify OFFLINE anytime: MATCH, or FORK-AT-EVENT-n with a named divergence.
 - Corrections are reversal + replacement only. No edits, ever.
@@ -14,10 +17,12 @@ Offline member-witnessed SHG ledger. Every entry goes into a SHA-256 chain, ever
 - AI is a hint layer only. The verdict (MATCH/FORK, balances) is pure hash math.
 
 ## Quick start
-No dependencies. Python 3 stdlib only.
-  python3 tests.py      # 9/9 tests, exit 0 = all green
+Python 3 stdlib only; the optional Ed25519 witness path needs `cryptography`
+(`pip install -r requirements-ed25519.txt`), everything else runs without it.
+  python3 tests.py      # tests, exit 0 = all green (Ed25519 cases self-skip without cryptography)
   python3 server.py     # demo UI on http://localhost:8123 (opens browser)
   python3 demo.py       # 90-second demo runner in the terminal
+  python3 demo_ed25519.py  # offline witness-verification walkthrough
 
 ## 90-second demo script
 1. "Sita deposits Rs 100" via 4 icon buttons, voice repeat line + green tick (10s).
@@ -44,11 +49,13 @@ Zero network. Deterministic: same input, same verdict, every run.
 
 ## Repo layout
 chain.py   hash chain, receipts, verify_receipt (the core, pure stdlib)
-witness.py witness signing
+witness.py witness signing (HMAC + optional Ed25519)
 loans.py   deterministic balances, rupees formatting
 server.py  demo web UI on port 8123
-tests.py   16/16 attack tests (edit, delete, reorder, tamper, forgery, ghost, member binding)
+tests.py   attack tests (edit, delete, reorder, tamper, forgery, ghost, member binding, Ed25519)
 demo.py    terminal demo runner
+demo_ed25519.py  offline Ed25519 witness-verification walkthrough
+docs/PRODUCT-DECISIONS.md  33 non-code product/trust decisions (identity, keys, anchoring, privacy)
 attack/    adversarial suite: 1,537 cases (109 flaw reproductions incl.
            round-2 fixes-attacks, 97 defense checks, 1,241 seeded fuzz
            properties incl. member-binding blind-spot fuzz, 16 stress

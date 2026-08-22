@@ -1,0 +1,7 @@
+# Optional dependency for Ed25519 witness signatures (see witness.py).
+#
+# The BAHI ledger core is stdlib-only and runs without any of this. Install it
+# only if you want the asymmetric witness-signature path (offline verification
+# with no shared secret). Without it, the legacy HMAC path still works and the
+# Ed25519 tests in tests.py self-skip.
+cryptography>=3.1
