@@ -4,6 +4,19 @@ Audit + performance + robustness battery for the BAHI ("witnessed ledger")
 prototype, written for the Craft N Code 2026 Round-1 project (PS-17 / SHG
 digital ledger).
 
+> ## RESOLUTION (round 3)
+> The 17 STILL-OPEN/NEW findings in this report have been **fixed** and merged
+> into the hardened code (`src/` now reflects that code). Resolution map:
+>
+> | Findings | Status | Fixed by |
+> |---|---|---|
+> | A02 (witness crypto), A04 (receipt deep-copy), A05 (re-close), A08–A12, A18–A21 (validation), N1 (group hashing), N2 (hint_flags crash), N3 (empty group), N4 (correction), N5 (close quorum) | FIXED | PR #10 |
+> | close-swap/ghost-insert, CSV formula injection | FIXED | PR #9 (pixie-chan) |
+> | C1 (quorum gaming), W1 (hints XSS), R1 (legacy receipt), B1–B3 (audit hints), D1 (CSV leading-space) | FIXED | this round |
+>
+> New round-3 findings (against the *fixed* code) and the full 70-vector threat
+> catalog live in **[`ATTACK-CATALOG.md`](ATTACK-CATALOG.md)**.
+
 - **Audited snapshot:** `d8e7511` (`SNAPSHOT_SHA.txt`) — source frozen in `src/`.
   Note: the upstream repo is under active, concurrent development; several
   findings below were already fixed by the time this report was written.

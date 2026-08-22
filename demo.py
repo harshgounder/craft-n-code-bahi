@@ -3,7 +3,7 @@
 meeting, witness signing, member receipt, ATTACK (tamper), fork detection.
 Deterministic: same inputs produce identical stdout (sha256-stable)."""
 from chain import BahiChain, receipt_payload, verify_receipt
-from witness import sign
+from witness import sign_entry
 
 def p(x):
     print(x)
@@ -15,7 +15,7 @@ def run():
     chain.add_event(1, "loan", "Kavita", 20000, t)      # prior meeting M06
     r6 = chain.close_meeting("M06", t)
     for w in ("Meera", "Laxmi"):
-        r6["witnesses"].append(sign({"root": r6["root_hash"], "meeting": "M06"}, "pass-" + w, w))
+        r6["witnesses"].append(sign_entry({"root": r6["root_hash"], "meeting": "M06"}, "pass-" + w, w))
     chain.add_event(3, "contribution", "Sita", 10000, t)   # M07 begins
     chain.add_event(4, "contribution", "Geeta", 10000, t)
     chain.add_event(5, "contribution", "Reema", 10000, t)
@@ -24,13 +24,14 @@ def run():
     chain.add_event(8, "contribution", "Sita", 10000, t)   # attack target
     root = chain.close_meeting("M07", t)
     for w in ("Meera", "Laxmi"):
-        root["witnesses"].append(sign({"root": root["root_hash"], "meeting": "M07"}, "pass-" + w, w))
+        root["witnesses"].append(sign_entry({"root": root["root_hash"], "meeting": "M07"}, "pass-" + w, w))
 
     receipt = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain)
     ok, detail = verify_receipt(chain, receipt)
     p("MEMBER RECEIPT (Sita): %s" % detail)
     p("receipt root: %s..." % receipt["root"][:16])
-    chain.save("/tmp/bahi-honest.json")
+    import tempfile, os
+    chain.save(os.path.join(tempfile.gettempdir(), "bahi-honest.json"))
     p("chain saved, %d events, chain root %s..." % (len(chain.events), root["root_hash"][:16]))
 
     p("")
