@@ -1,44 +1,44 @@
 {
- "generated": "2026-08-23T03:35:40",
- "total": 1207,
- "vuln_confirmed": 99,
+ "generated": "2026-08-23T03:53:38",
+ "total": 1537,
+ "vuln_confirmed": 109,
  "safe_broken": 0,
- "failed": 28,
+ "failed": 0,
  "benchmarks": {
-  "h_200k_hashes_sec": 0.242141,
-  "h_throughput_per_sec": 825965,
-  "add_1000": 0.004172,
-  "verify_1000": 0.001604,
+  "h_200k_hashes_sec": 0.292504,
+  "h_throughput_per_sec": 683751,
+  "add_1000": 0.002138,
+  "verify_1000": 0.001966,
   "export_1000": 1e-06,
   "export_1000_bytes": 276910,
-  "csv_1000": 0.00121,
+  "csv_1000": 0.001727,
   "csv_1000_bytes": 110904,
-  "balances_1000": 0.000144,
+  "balances_1000": 0.000165,
   "export_1000_events": 1000,
-  "add_10000": 0.020593,
-  "verify_10000": 0.015946,
+  "add_10000": 0.022172,
+  "verify_10000": 0.019883,
   "export_10000": 1e-06,
   "export_10000_bytes": 2779140,
-  "csv_10000": 0.012039,
+  "csv_10000": 0.017069,
   "csv_10000_bytes": 1119134,
-  "balances_10000": 0.001292,
-  "add_100000": 0.21525,
-  "verify_100000": 0.162274,
+  "balances_10000": 0.001462,
+  "add_100000": 0.244889,
+  "verify_100000": 0.194689,
   "export_100000": 3e-06,
   "export_100000_bytes": 27891167,
-  "csv_100000": 0.124002,
+  "csv_100000": 0.179501,
   "csv_100000_bytes": 11291161,
-  "balances_100000": 0.013355,
-  "verify_receipt_100k": 0.164026,
-  "hint_flags_100k": 0.417587,
-  "save_100k": 0.121582,
-  "load_100k": 0.191099,
+  "balances_100000": 0.014832,
+  "verify_receipt_100k": 0.278313,
+  "hint_flags_100k": 0.439735,
+  "save_100k": 0.172599,
+  "load_100k": 0.202937,
   "save_100k_file_bytes": 30891175,
-  "peak_mem_100k_events_bytes": 46476753,
-  "http_100x_state_sec": 0.0337,
-  "http_100x_entry_sec": 0.0454,
-  "http_state_ms_req": 0.337,
-  "http_entry_ms_req": 0.454
+  "peak_mem_100k_events_bytes": 46476641,
+  "http_100x_state_sec": 0.0508,
+  "http_100x_entry_sec": 0.0805,
+  "http_state_ms_req": 0.508,
+  "http_entry_ms_req": 0.805
  },
  "rows": [
   {
@@ -612,9 +612,9 @@
    "detail": "events-after-close"
   },
   {
-   "tid": "VULN.recv.field.member (receipt member NOT bound)",
-   "ok": false,
-   "detail": "member='Other Member' still MATCHes: receipt payload field is not verified"
+   "tid": "SAFE.recv.field.member (PR4 member binding FIXED)",
+   "ok": true,
+   "detail": "member='Other Member' -> member-not-in-chain"
   },
   {
    "tid": "VULN.recv.field.root_ts (receipt root_ts NOT bound)",
@@ -672,9 +672,9 @@
    "detail": "quorum-fail: 0 witness"
   },
   {
-   "tid": "VULN.recv.missing.member still MATCHes (field never read)",
-   "ok": false,
-   "detail": "receipt without 'member' verifies MATCH: member is present in receipts but NEVER checked"
+   "tid": "SAFE.recv.missing.member graceful fail (PR4 member binding FIXED)",
+   "ok": true,
+   "detail": "receipt without 'member' -> member-missing"
   },
   {
    "tid": "VULN.recv.missing.none-receipt crash",
@@ -1097,9 +1097,9 @@
    "detail": "KeyError KeyError('root_hash'): exporter.py audit_report() iterates roots incl. __corrupt__ and requires root_hash/root_seq; a file that load() marks corrupt instantly crashes /api/export"
   },
   {
-   "tid": "SAFE.http.base.001 /api/state returns MATCH verdict",
+   "tid": "chain.http.base.001 /api/state reports MEETING OPEN (amber Pending)",
    "ok": true,
-   "detail": "200 MATCH"
+   "detail": "200 MEETING OPEN: entries accepted until Close"
   },
   {
    "tid": "SAFE.http.base.002 index serves HTML",
@@ -1109,7 +1109,7 @@
   {
    "tid": "VULN.http.base.003 unknown path serves the app (no 404)",
    "ok": true,
-   "detail": "every unknown URL (including /etc/passwd, /admin) returns the demo HTML: no 404, no route distinction"
+   "detail": "every unknown URL returns the demo HTML: no 404, no route distinction"
   },
   {
    "tid": "SAFE.http.base.004 JSON content-type",
@@ -1117,29 +1117,34 @@
    "detail": "application/json"
   },
   {
-   "tid": "VULN.http.csrf.001 GET /api/attack mutates ledger state (state-changing GET, no CSRF token)",
+   "tid": "VULN.http.csrf.001 GET /api/attack AFTER close mutates ledger state (state-changing GET, no CSRF token)",
    "ok": true,
-   "detail": "plain GET permanently alters the chain; <img src=http://localhost:8123/api/attack> triggers it with NO Origin header"
+   "detail": "plain GET permanently alters the chain post-close; <img src=http://localhost:8123/api/attack> triggers it (no Origin header sent for image GETs)"
   },
   {
-   "tid": "SAFE.http.csrf.002 GET /api/entry appends event",
+   "tid": "SAFE.http.csrf.002 GET /api/entry appends event while open",
    "ok": true,
-   "detail": "GET /api/entry is a write (append). Any cross-site GET (img/form/link) can write ledger entries"
+   "detail": "GET /api/entry is a write (append). Any cross-site GET (img/form/link) can still write ledger entries while the meeting is open"
   },
   {
-   "tid": "SAFE.http.csrf.003 GET /api/close issues receipt",
+   "tid": "SAFE.http.csrf.003 GET /api/close closes M07 + issues bound receipt",
    "ok": true,
-   "detail": "M08"
+   "detail": "M07"
   },
   {
-   "tid": "SAFE.http.csrf.004 GET /api/reset resets",
+   "tid": "SAFE.http.csrf.003b close receipt carries member_events",
+   "ok": true,
+   "detail": "[{'seq': 3, 'hash': 'd4168ed0d84b771232a3393d071a7a69bba301f"
+  },
+  {
+   "tid": "SAFE.http.csrf.004 GET /api/reset resets to open state",
    "ok": true,
    "detail": ""
   },
   {
-   "tid": "VULN.http.csrf.005 atomic CSRF chain: single img can attack+reset in sequence",
+   "tid": "VULN.http.csrf.005 all four state-changing endpoints are still GET",
    "ok": true,
-   "detail": "all four state-changing endpoints are GET: <img src=.../api/attack> <img src=.../api/entry> <img src=.../api/close> run on page load"
+   "detail": "<img src=.../api/attack> runs on page load; POST is 501 so no CSRF token infrastructure exists"
   },
   {
    "tid": "VULN.http.param.001 negative paise silently clamped to 0 (intent lost)",
@@ -1172,59 +1177,54 @@
    "detail": ""
   },
   {
-   "tid": "VULN.http.param.007 5KB event type accepted into chain",
-   "ok": false,
-   "detail": "no type length limit: chain/state bloat via API; UI table renders it raw"
-  },
-  {
-   "tid": "chain.http.param.008 unicode type roundtrips",
-   "ok": false,
-   "detail": ""
-  },
-  {
-   "tid": "VULN.http.xss.001 attacker type payload stored verbatim in /api/state",
-   "ok": false,
-   "detail": "the UI inserts e.type via innerHTML (INDEX_HTML chainstable builder) with NO escaping -> stored XSS on /"
-  },
-  {
-   "tid": "VULN.http.xss.002 no sanitizer in page JS",
+   "tid": "SAFE.http.param.007 5KB type whitelisted to contribution (XSS fix holds)",
    "ok": true,
-   "detail": "chain table built with innerHTML; no escape function anywhere in INDEX_HTML"
+   "detail": "type field sanitized server-side"
   },
   {
-   "tid": "VULN.http.xss.003 API lets clients forge MEETING-CLOSE type events",
-   "ok": false,
-   "detail": "only close_meeting() should create MEETING-CLOSE events; /api/entry mints them with arbitrary amount"
-  },
-  {
-   "tid": "VULN.http.host.'127.0.0.1' accepted",
+   "tid": "SAFE.http.param.008 unicode type whitelisted to contribution (allowed types only)",
    "ok": true,
-   "detail": "Host prefix check bypassed: startswith('127.0.0.1')/'localhost' -> '127.0.0.1' slips past"
+   "detail": "unicode types no longer reach the chain via API"
   },
   {
-   "tid": "VULN.http.host.'localhost' accepted",
+   "tid": "SAFE.http.xss.001 attacker type payload neutralized to contribution (stored XSS blocked server-side)",
    "ok": true,
-   "detail": "Host prefix check bypassed: startswith('127.0.0.1')/'localhost' -> 'localhost' slips past"
+   "detail": "whitelist replaces the payload with contribution"
   },
   {
-   "tid": "VULN.http.host.'127.0.0.1:8123' accepted",
+   "tid": "SAFE.http.xss.002 esc() present on chain table render path",
    "ok": true,
-   "detail": "Host prefix check bypassed: startswith('127.0.0.1')/'localhost' -> '127.0.0.1:8123' slips past"
+   "detail": "PR6 UI escaping added to show() table builder"
   },
   {
-   "tid": "VULN.http.host.'127.0.0.1.evil.com' accepted",
-   "ok": false,
-   "detail": "Host prefix check bypassed: startswith('127.0.0.1')/'localhost' -> '127.0.0.1.evil.com' slips past"
-  },
-  {
-   "tid": "VULN.http.host.'localhost.evil.com' accepted",
-   "ok": false,
-   "detail": "Host prefix check bypassed: startswith('127.0.0.1')/'localhost' -> 'localhost.evil.com' slips past"
-  },
-  {
-   "tid": "VULN.http.host.'127.0.0.1:8123.attacker.com' accepted",
+   "tid": "SAFE.http.xss.003 MEETING-CLOSE type via /api/entry neutralized (protocol pollution fixed)",
    "ok": true,
-   "detail": "Host prefix check bypassed: startswith('127.0.0.1')/'localhost' -> '127.0.0.1:8123.attacker.com' slips past"
+   "detail": "clients can no longer mint MEETING-CLOSE events"
+  },
+  {
+   "tid": "chain.http.host.'127.0.0.1' accepted",
+   "ok": true,
+   "detail": "200"
+  },
+  {
+   "tid": "chain.http.host.'localhost' accepted",
+   "ok": true,
+   "detail": "200"
+  },
+  {
+   "tid": "chain.http.host.'127.0.0.1:8123' accepted",
+   "ok": true,
+   "detail": "200"
+  },
+  {
+   "tid": "SAFE.http.host.'127.0.0.1.evil.com' rejected",
+   "ok": true,
+   "detail": "403"
+  },
+  {
+   "tid": "SAFE.http.host.'localhost.evil.com' rejected",
+   "ok": true,
+   "detail": "403"
   },
   {
    "tid": "SAFE.http.host.'evil.com' rejected",
@@ -1237,24 +1237,29 @@
    "detail": "403"
   },
   {
-   "tid": "VULN.http.origin.'http://127.0.0.1:8123' accepted",
+   "tid": "VULN.http.host.port-suffix '127.0.0.1:8123.attacker.com' accepted (split(:)[0] strips everything after the port)",
    "ok": true,
-   "detail": "Origin substring check bypassed ('127.0.0.1'/'localhost' anywhere in the Origin string passes)"
+   "detail": "hostname = host.split(':')[0] = '127.0.0.1': any Host starting '127.0.0.1:' + arbitrary suffix passes; naive split, not a real hostname parse (browser-unreachable via DNS today, but the guard's intent is broken and any 0.0.0.0 bind makes it live)"
   },
   {
-   "tid": "VULN.http.origin.'http://localhost:8123' accepted",
+   "tid": "VULN.http.origin.'http://127.0.0.1:8123' accepted (substring check)",
    "ok": true,
-   "detail": "Origin substring check bypassed ('127.0.0.1'/'localhost' anywhere in the Origin string passes)"
+   "detail": "Origin guard is still a SUBSTRING check ('127.0.0.1' anywhere passes): not an exact-origin compare"
   },
   {
-   "tid": "VULN.http.origin.'http://127.0.0.1.evil.com' accepted",
+   "tid": "VULN.http.origin.'http://localhost:8123' accepted (substring check)",
    "ok": true,
-   "detail": "Origin substring check bypassed ('127.0.0.1'/'localhost' anywhere in the Origin string passes)"
+   "detail": "Origin guard is still a SUBSTRING check ('127.0.0.1' anywhere passes): not an exact-origin compare"
   },
   {
-   "tid": "VULN.http.origin.'http://evil.example/?u=http://127.0.0.1:8123' accepted",
+   "tid": "VULN.http.origin.'http://127.0.0.1.evil.com' accepted (substring check)",
    "ok": true,
-   "detail": "Origin substring check bypassed ('127.0.0.1'/'localhost' anywhere in the Origin string passes)"
+   "detail": "Origin guard is still a SUBSTRING check ('127.0.0.1' anywhere passes): not an exact-origin compare"
+  },
+  {
+   "tid": "VULN.http.origin.'http://evil.example/?u=http://127.0.0.1:8123' accepted (substring check)",
+   "ok": true,
+   "detail": "Origin guard is still a SUBSTRING check ('127.0.0.1' anywhere passes): not an exact-origin compare"
   },
   {
    "tid": "SAFE.http.origin.'https://evil.com' rejected",
@@ -1264,12 +1269,12 @@
   {
    "tid": "VULN.http.origin.none missing Origin header passes state-changing request",
    "ok": true,
-   "detail": "Origin absent (img/form GET) -> guard skipped completely: DNS-rebinding CSRF executes"
+   "detail": "Origin absent (img/form GET) -> guard skipped entirely: GET-CSRF path survives the Host fix"
   },
   {
-   "tid": "VULN.http.rebind.001 full DNS-rebinding attack (Host+Origin bypass) mutates ledger",
-   "ok": false,
-   "detail": "rebind 127.0.0.1.evil.com -> 127.0.0.1: browser loads attacker JS from same origin, drives every GET endpoint"
+   "tid": "SAFE.http.rebind.001 hostname-parse fix blocks DNS-rebinding Host",
+   "ok": true,
+   "detail": "127.0.0.1.evil.com -> hostname '127.0.0.1.evil.com' not in allowlist -> 403"
   },
   {
    "tid": "SAFE.http.method.001 POST rejected",
@@ -1287,14 +1292,14 @@
    "detail": "501"
   },
   {
-   "tid": "chain.http.method.004 OPTIONS -> 501 (no CORS headers, no preflight support)",
+   "tid": "chain.http.method.004 OPTIONS -> 501 (no CORS preflight)",
    "ok": true,
    "detail": "501"
   },
   {
-   "tid": "SAFE.http.method.005 HEAD aliases GET",
+   "tid": "SAFE.http.method.005 HEAD headers only, no body (PR5)",
    "ok": true,
-   "detail": "no body, no crash"
+   "detail": "5853"
   },
   {
    "tid": "chain.http.path.001 dotdot path no traversal (serves HTML)",
@@ -1312,17 +1317,207 @@
    "detail": ""
   },
   {
-   "tid": "VULN.http.repeat.001 double /api/close: second close overwrites M08 root metadata",
+   "tid": "SAFE.http.repeat.001 second /api/close rejected (already closed)",
    "ok": true,
-   "detail": "nxt is HARDCODED 'M08': two M08 MEETING-CLOSE events exist but roots[] holds ONE M08 entry (the later one); the first M08 root is destroyed -> prior M08 receipts FORK"
+   "detail": "M06+M07 closes only; no duplicate M07 root this pass"
   },
   {
-   "tid": "VULN.http.repeat.002 /api/entry after /api/close accepted -> receipt invalidated (events-after-close)",
+   "tid": "SAFE.http.repeat.002 /api/entry after /api/close rejected (receipt stays MATCH)",
    "ok": true,
-   "detail": "server happily books entries after close instead of refusing; the member's fresh receipt instantly breaks"
+   "detail": "post-close entry now refused; terminality protected"
   },
   {
-   "tid": "SAFE.http.repeat.003 re-close after post-close entry repairs verdict",
+   "tid": "VULN.v2.close-swap close event deleted+replaced at same seq: bound receipt still MATCHes",
+   "ok": true,
+   "detail": "why=ok det=MATCH: member's own events untouched (hashes identical), root metadata stale-equal to receipt root, terminality passes (new close seq 9) -> silent close replacement"
+  },
+  {
+   "tid": "VULN.v2.ghost-insert FORGERY: Rs 10,000,000 Ghost contribution inserted into M07, bound receipt MATCHes",
+   "ok": true,
+   "detail": "verify=True receipt=MATCH ghost=1000000000: member binding pins ONLY the receipt member's line items; any OTHER member's events below the close are unprotected -> entire fraud unobservable to Sita's receipt"
+  },
+  {
+   "tid": "VULN.v2.close-swap2 close swap + full recompute: bound receipt MATCHes",
+   "ok": true,
+   "detail": "MATCH"
+  },
+  {
+   "tid": "VULN.v2.downgrade member_events stripped: recompute MATCHes via legacy path",
+   "ok": true,
+   "detail": "det=MATCH: verify_receipt uses receipt.get('member_events'); removing the key downgrades to member-exists check -> original recompute hole is back"
+  },
+  {
+   "tid": "VULN.v2.legacy-recompute legacy receipts still MATCH under recompute",
+   "ok": true,
+   "detail": "any receipt issued without chain context (pre-PR4 copies, printed QRs) verifies MATCH after edit+recompute"
+  },
+  {
+   "tid": "SAFE.v2.recompute bound receipt catches edit+recompute",
+   "ok": true,
+   "detail": "member-event-missing-or-tampered"
+  },
+  {
+   "tid": "SAFE.v2.prefix-del bound receipt catches whole-M06 deletion",
+   "ok": true,
+   "detail": "member-event-missing-or-tampered"
+  },
+  {
+   "tid": "VULN.v2.attendance receipt for M07 member who only acts in M06 also MATCHes",
+   "ok": true,
+   "detail": "member_events spans seq<=root_seq across ALL meetings: no per-meeting participation proof; any historical member can be receipted for a meeting they never attended"
+  },
+  {
+   "tid": "VULN.v2.partial member_events subset MATCHes (no completeness check)",
+   "ok": true,
+   "detail": "receipt carrying only the FIRST of Sita's deposits still MATCHes: member cannot prove omitted line items; secretary can hand out 'partial' receipts"
+  },
+  {
+   "tid": "SAFE.v2.inflated extra member event caught",
+   "ok": true,
+   "detail": "member-event-missing-or-tampered"
+  },
+  {
+   "tid": "SAFE.v2.cross-member event caught",
+   "ok": true,
+   "detail": "member-event-does-not-belong"
+  },
+  {
+   "tid": "VULN.v2.dupseq seq 8 duplicated by another member -> honest Sita receipt FORKs (availability)",
+   "ok": true,
+   "detail": "verify=True why=ok receipt=member-event-does-not-belong: seq_to_member dict last-wins: Ghost's seq 8 shadows Sita's; a member can sabotage another member's receipt with a same-seq correction, all while chain.verify() passes"
+  },
+  {
+   "tid": "VULN.v2.case-sensitive name exact byte match (no normalization)",
+   "ok": true,
+   "detail": "det=member-event-does-not-belong: mobile keyboard case/spelling drift breaks honest receipts (interop), no NFC normalization"
+  },
+  {
+   "tid": "VULN.v2.host-ipv6 allowlist includes ::1 but parser rejects every IPv6 Host form",
+   "ok": true,
+   "detail": "hostname = host.split(':')[0] -> '[' or '' : the guard's own allowlist entry ::1 can never pass; IPv6 localhost users get permanent 403"
+  },
+  {
+   "tid": "chain.v2.host-trailing-dot 'localhost.' rejected (legit DNS form blocked)",
+   "ok": true,
+   "detail": "403"
+  },
+  {
+   "tid": "VULN.v2.origin-substring Origin containing '127.0.0.1' anywhere still passes",
+   "ok": true,
+   "detail": "Origin check remains substring-based: no exact-origin compare, no Sec-Fetch-Site check"
+  },
+  {
+   "tid": "VULN.v2.get-csrf cross-site GET /api/attack (no Origin, Sec-Fetch-Site: cross-site) still mutates chain",
+   "ok": true,
+   "detail": "after close, GET /api/attack rewrites event 8; browsers send NO Origin for img/form GET and the server never checks Sec-Fetch-Site: CSRF survives the Host fix"
+  },
+  {
+   "tid": "SAFE.v2.open-attack attack while meeting open is a no-op",
+   "ok": true,
+   "detail": "{'verdict': None, 'detail': 'meeting-open: close the meeting first'}"
+  },
+  {
+   "tid": "SAFE.v2.open-entry entries accepted while open",
+   "ok": true,
+   "detail": "9"
+  },
+  {
+   "tid": "SAFE.v2.closed-entry entries rejected after close (detail + ok False)",
+   "ok": true,
+   "detail": "{\"ok\": false, \"detail\": \"meeting-closed: no more entries\"}"
+  },
+  {
+   "tid": "SAFE.v2.double-close second close rejected",
+   "ok": true,
+   "detail": "{\"ok\": false, \"detail\": \"meeting already closed\"}"
+  },
+  {
+   "tid": "VULN.v2.reset-orphan reset drops the Rs 777 entry: pre-reset M07 receipt now fails silently",
+   "ok": true,
+   "detail": "receipt was valid (MATCH) before reset; after reset+reclose the same receipt fails (meeting-close-missing): the demo UI commits data loss on Reset with no receipt migration/repair path"
+  },
+  {
+   "tid": "VULN.v2.xss-hints /api/export hint evidence rendered via innerHTML WITHOUT esc()",
+   "ok": true,
+   "detail": "exportView() builds '<div class=hint>...x.hint @ x.meeting: x.evidence' raw; evidence embeds member names/amounts: attacker who controls any chain string (future file import) gets stored XSS in the auditor box"
+  },
+  {
+   "tid": "stress.conc.001 8x50 concurrent entries all recorded (serialized, no lost updates)",
+   "ok": true,
+   "detail": "n0=8 n1=408 errs=0"
+  },
+  {
+   "tid": "VULN.stress.conc.002 server's own seq allocator collides: preseeded seq 8 duplicated by first live entry",
+   "ok": true,
+   "detail": "seq = len(non-close events)+1 is COUNT-based: build seeds M07 events seq 3..8, so the FIRST live entry also gets seq 8 (count 7+1=8). Two different events share seq 8 every meeting cycle; seqs are not unique identifiers"
+  },
+  {
+   "tid": "stress.conc.003 chain verifies after hammer",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "tid": "stress.bloat.001 10000 entries accepted while open",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "tid": "stress.bloat.002 close at 10k events ok",
+   "ok": true,
+   "detail": "{\"ok\": true, \"meeting\": \"M07\", \"root_hash\": \"94c473fac8e2ebd179961634bae75919f2ed5ff3d7797329713d91aed46c9e0f\", \"detail\""
+  },
+  {
+   "tid": "stress.bloat.003 member_events grows with member activity (10k entries, all Sita)",
+   "ok": true,
+   "detail": "member_events=10002"
+  },
+  {
+   "tid": "stress.bloat.004 /api/state payload size with 10k member_events",
+   "ok": true,
+   "detail": "3614.6 KB"
+  },
+  {
+   "tid": "VULN.stress.bloat.005 single-member 10k-entry meeting -> receipt ~10002 event refs (3615 KB state): unbounded receipt growth",
+   "ok": true,
+   "detail": "every entry books to member Sita; receipts grow linearly with entry count; a 1e6-entry group -> ~70 MB receipts per member (QR impossible, /api/state MBs)"
+  },
+  {
+   "tid": "stress.bloat.006 verify_receipt @10k member_events 25 ms",
+   "ok": true,
+   "detail": "MATCH"
+  },
+  {
+   "tid": "stress.bloat.007 /api/state latency @10k events < 500 ms",
+   "ok": true,
+   "detail": "44 ms"
+  },
+  {
+   "tid": "stress.reset.001 60 entry+close+reset cycles stable",
+   "ok": true,
+   "detail": "ok=60"
+  },
+  {
+   "tid": "stress.reset.002 state consistent after cycles",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "tid": "stress.export.001 /api/export @2k events fast",
+   "ok": true,
+   "detail": "9 ms"
+  },
+  {
+   "tid": "stress.export.002 csv rows == events",
+   "ok": true,
+   "detail": "2009"
+  },
+  {
+   "tid": "stress.export.003 hints returned",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "tid": "stress.fuzz.001 9 malformed param bombs: server stays up",
    "ok": true,
    "detail": ""
   },
@@ -2827,1002 +3022,2457 @@
    "detail": "why=event-hash-mismatch"
   },
   {
-   "tid": "fuzz.P4.0000 recompute attack -> receipt MATCH (finding)",
-   "ok": false,
-   "detail": "det=member-not-in-chain: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "tid": "fuzz.P4a.0000 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0001 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0002 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0003 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0004 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0005 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0006 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0007 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0008 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0009 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0010 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0011 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0012 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0013 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0014 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0015 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0016 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0017 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0018 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0019 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0020 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0021 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0022 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0023 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0024 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0025 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0026 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0027 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0028 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0029 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0030 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0031 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0032 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0033 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0034 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0035 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0036 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0037 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0038 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0039 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0040 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0041 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0042 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0043 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0044 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0045 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0046 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0047 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0048 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0049 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0050 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0051 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0052 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0053 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0054 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0055 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0056 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0057 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0058 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0059 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0060 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0061 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0062 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0063 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0064 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0065 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0066 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0067 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0068 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0069 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0070 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0071 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0072 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0073 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0074 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0075 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0076 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0077 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0078 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0079 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0080 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0081 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0082 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0083 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0084 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0085 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0086 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0087 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0088 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0089 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0090 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0091 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0092 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0093 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0094 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0095 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0096 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0097 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0098 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4a.0099 bound receipt catches OWN-event edit+recompute (PR4 FIX verified)",
+   "ok": true,
+   "detail": "det=member-event-missing-or-tampered"
+  },
+  {
+   "tid": "fuzz.P4d.0000 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0001 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0002 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0003 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0004 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0005 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0006 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0007 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0008 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0009 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0010 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0011 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0012 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0014 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0015 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0016 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0017 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0018 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0019 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0020 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0021 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0022 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0024 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0025 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0026 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0027 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0028 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0029 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0030 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0031 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0032 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0033 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0034 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0035 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0036 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0038 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0039 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0040 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0041 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0042 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0043 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0044 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0045 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0046 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0047 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0048 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0049 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0050 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0051 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0052 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0054 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0055 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0056 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0058 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0059 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0060 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0061 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0062 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0063 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0064 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0065 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0066 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0067 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0068 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0069 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0070 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0071 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0072 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0073 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0074 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0075 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0077 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0080 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0081 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0082 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0083 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0084 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0086 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0087 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0088 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0089 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0090 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0091 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0092 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0093 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0094 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0095 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0096 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0097 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0098 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4d.0099 NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)",
+   "ok": true,
+   "detail": "det=MATCH: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes"
+  },
+  {
+   "tid": "fuzz.P4c.0000 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0001 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0002 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0003 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0004 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0005 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0006 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0007 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0008 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0009 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0010 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0011 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0012 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0013 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0014 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0015 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0016 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0017 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0018 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0019 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0020 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0021 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0022 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0023 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0024 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
   },
   {
-   "tid": "fuzz.P4.0001 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4c.0025 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
   },
   {
-   "tid": "fuzz.P4.0002 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4c.0026 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
   },
   {
-   "tid": "fuzz.P4.0003 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4c.0027 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
   },
   {
-   "tid": "fuzz.P4.0004 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4c.0028 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
   },
   {
-   "tid": "fuzz.P4.0005 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4c.0029 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
   },
   {
-   "tid": "fuzz.P4.0006 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4c.0030 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
   },
   {
-   "tid": "fuzz.P4.0007 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4c.0031 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
   },
   {
-   "tid": "fuzz.P4.0008 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4c.0032 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
   },
   {
-   "tid": "fuzz.P4.0009 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4c.0033 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
   },
   {
-   "tid": "fuzz.P4.0010 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4c.0034 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
   },
   {
-   "tid": "fuzz.P4.0011 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4c.0035 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
   },
   {
-   "tid": "fuzz.P4.0012 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4c.0036 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
   },
   {
-   "tid": "fuzz.P4.0013 recompute attack -> receipt MATCH (finding)",
-   "ok": false,
-   "detail": "det=member-not-in-chain: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "tid": "fuzz.P4c.0037 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0038 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0039 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0040 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0041 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0042 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0043 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0044 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0045 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0046 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0047 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0048 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0049 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0050 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0051 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0052 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0053 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0054 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0055 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0056 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0057 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0058 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0059 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0060 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0061 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0062 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0063 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0064 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0065 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0066 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0067 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0068 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0069 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0070 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0071 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0072 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0073 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0074 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0075 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0076 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0077 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0078 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0079 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0080 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0081 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0082 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0083 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0084 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0085 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0086 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0087 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0088 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0089 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0090 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0091 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0092 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0093 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0094 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0095 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0096 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0097 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0098 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4c.0099 close-event edit + recompute -> bound receipt MATCHes (root pin hole)",
+   "ok": true,
+   "detail": "det=MATCH: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent"
+  },
+  {
+   "tid": "fuzz.P4b.0000 legacy receipt still MATCHes under recompute (finding persists)",
+   "ok": true,
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
+  },
+  {
+   "tid": "fuzz.P4b.0001 legacy receipt still MATCHes under recompute (finding persists)",
+   "ok": true,
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
+  },
+  {
+   "tid": "fuzz.P4b.0002 legacy receipt still MATCHes under recompute (finding persists)",
+   "ok": true,
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
+  },
+  {
+   "tid": "fuzz.P4b.0003 legacy receipt still MATCHes under recompute (finding persists)",
+   "ok": true,
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
+  },
+  {
+   "tid": "fuzz.P4b.0004 legacy receipt still MATCHes under recompute (finding persists)",
+   "ok": true,
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
+  },
+  {
+   "tid": "fuzz.P4b.0005 legacy receipt still MATCHes under recompute (finding persists)",
+   "ok": true,
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
+  },
+  {
+   "tid": "fuzz.P4b.0006 legacy receipt still MATCHes under recompute (finding persists)",
+   "ok": true,
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
+  },
+  {
+   "tid": "fuzz.P4b.0007 legacy receipt still MATCHes under recompute (finding persists)",
+   "ok": true,
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
+  },
+  {
+   "tid": "fuzz.P4b.0008 legacy receipt still MATCHes under recompute (finding persists)",
+   "ok": true,
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
+  },
+  {
+   "tid": "fuzz.P4b.0009 legacy receipt still MATCHes under recompute (finding persists)",
+   "ok": true,
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
+  },
+  {
+   "tid": "fuzz.P4b.0010 legacy receipt still MATCHes under recompute (finding persists)",
+   "ok": true,
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
+  },
+  {
+   "tid": "fuzz.P4b.0011 legacy receipt still MATCHes under recompute (finding persists)",
+   "ok": true,
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
+  },
+  {
+   "tid": "fuzz.P4b.0012 legacy receipt still MATCHes under recompute (finding persists)",
+   "ok": true,
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
+  },
+  {
+   "tid": "fuzz.P4b.0013 legacy receipt still MATCHes under recompute (finding persists)",
+   "ok": true,
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0014 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0014 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0015 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0015 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0016 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0016 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0017 recompute attack -> receipt MATCH (finding)",
-   "ok": false,
-   "detail": "det=member-not-in-chain: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "tid": "fuzz.P4b.0017 legacy receipt still MATCHes under recompute (finding persists)",
+   "ok": true,
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0018 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0018 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0019 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0019 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0020 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0020 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0021 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0021 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0022 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0022 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0023 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0023 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0024 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0024 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0025 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0025 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0026 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0026 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0027 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0027 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0028 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0028 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0029 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0029 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0030 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0030 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0031 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0031 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0032 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0032 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0033 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0033 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0034 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0034 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0035 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0035 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0036 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0036 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0037 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0037 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0038 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0038 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0039 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0039 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0040 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0040 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0041 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0041 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0042 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0042 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0043 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0043 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0044 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0044 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0045 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0045 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0046 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0046 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0047 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0047 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0048 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0048 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0049 recompute attack -> receipt MATCH (finding)",
-   "ok": false,
-   "detail": "det=member-not-in-chain: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "tid": "fuzz.P4b.0049 legacy receipt still MATCHes under recompute (finding persists)",
+   "ok": true,
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0050 recompute attack -> receipt MATCH (finding)",
-   "ok": false,
-   "detail": "det=member-not-in-chain: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "tid": "fuzz.P4b.0050 legacy receipt still MATCHes under recompute (finding persists)",
+   "ok": true,
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0051 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0051 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0052 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0052 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0053 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0053 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0054 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0054 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0055 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0055 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0056 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0056 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0057 recompute attack -> receipt MATCH (finding)",
-   "ok": false,
-   "detail": "det=member-not-in-chain: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "tid": "fuzz.P4b.0057 legacy receipt still MATCHes under recompute (finding persists)",
+   "ok": true,
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0058 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0058 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0059 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0059 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0060 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0060 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0061 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0061 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0062 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0062 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0063 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0063 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0064 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0064 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0065 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0065 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0066 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0066 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0067 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0067 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0068 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0068 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0069 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0069 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0070 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0070 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0071 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0071 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0072 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0072 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0073 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0073 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0074 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0074 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0075 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0075 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0076 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0076 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0077 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0077 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0078 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0078 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0079 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0079 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0080 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0080 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0081 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0081 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0082 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0082 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0083 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0083 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0084 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0084 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0085 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0085 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0086 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0086 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0087 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0087 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0088 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0088 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0089 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0089 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0090 recompute attack -> receipt MATCH (finding)",
-   "ok": false,
-   "detail": "det=member-not-in-chain: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "tid": "fuzz.P4b.0090 legacy receipt still MATCHes under recompute (finding persists)",
+   "ok": true,
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0091 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0091 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0092 recompute attack -> receipt MATCH (finding)",
-   "ok": false,
-   "detail": "det=member-not-in-chain: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "tid": "fuzz.P4b.0092 legacy receipt still MATCHes under recompute (finding persists)",
+   "ok": true,
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0093 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0093 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0094 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0094 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0095 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0095 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0096 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0096 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0097 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0097 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0098 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0098 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P4.0099 recompute attack -> receipt MATCH (finding)",
+   "tid": "fuzz.P4b.0099 legacy receipt still MATCHes under recompute (finding persists)",
    "ok": true,
-   "detail": "det=MATCH: root check compares receipt vs (possibly stale) metadata, never vs recomputed tail"
+   "detail": "det=MATCH: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts"
   },
   {
-   "tid": "fuzz.P5.0000 honest receipt MATCH",
+   "tid": "fuzz.P5.0000 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0001 honest receipt MATCH",
-   "ok": false,
-   "detail": "det=member-not-in-chain"
+   "tid": "fuzz.P5.0001 honest bound receipt MATCH",
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0002 honest receipt MATCH",
+   "tid": "fuzz.P5.0002 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0003 honest receipt MATCH",
+   "tid": "fuzz.P5.0003 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0004 honest receipt MATCH",
+   "tid": "fuzz.P5.0004 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0005 honest receipt MATCH",
+   "tid": "fuzz.P5.0005 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0006 honest receipt MATCH",
+   "tid": "fuzz.P5.0006 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0007 honest receipt MATCH",
+   "tid": "fuzz.P5.0007 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0008 honest receipt MATCH",
+   "tid": "fuzz.P5.0008 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0009 honest receipt MATCH",
+   "tid": "fuzz.P5.0009 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0010 honest receipt MATCH",
-   "ok": false,
-   "detail": "det=member-not-in-chain"
+   "tid": "fuzz.P5.0010 honest bound receipt MATCH",
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0011 honest receipt MATCH",
+   "tid": "fuzz.P5.0011 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0012 honest receipt MATCH",
+   "tid": "fuzz.P5.0012 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0013 honest receipt MATCH",
+   "tid": "fuzz.P5.0013 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0014 honest receipt MATCH",
+   "tid": "fuzz.P5.0014 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0015 honest receipt MATCH",
+   "tid": "fuzz.P5.0015 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0016 honest receipt MATCH",
+   "tid": "fuzz.P5.0016 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0017 honest receipt MATCH",
+   "tid": "fuzz.P5.0017 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0018 honest receipt MATCH",
+   "tid": "fuzz.P5.0018 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0019 honest receipt MATCH",
+   "tid": "fuzz.P5.0019 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0020 honest receipt MATCH",
+   "tid": "fuzz.P5.0020 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0021 honest receipt MATCH",
+   "tid": "fuzz.P5.0021 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0022 honest receipt MATCH",
+   "tid": "fuzz.P5.0022 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0023 honest receipt MATCH",
+   "tid": "fuzz.P5.0023 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0024 honest receipt MATCH",
+   "tid": "fuzz.P5.0024 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0025 honest receipt MATCH",
+   "tid": "fuzz.P5.0025 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0026 honest receipt MATCH",
+   "tid": "fuzz.P5.0026 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0027 honest receipt MATCH",
+   "tid": "fuzz.P5.0027 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0028 honest receipt MATCH",
+   "tid": "fuzz.P5.0028 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0029 honest receipt MATCH",
+   "tid": "fuzz.P5.0029 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0030 honest receipt MATCH",
+   "tid": "fuzz.P5.0030 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0031 honest receipt MATCH",
+   "tid": "fuzz.P5.0031 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0032 honest receipt MATCH",
+   "tid": "fuzz.P5.0032 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0033 honest receipt MATCH",
+   "tid": "fuzz.P5.0033 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0034 honest receipt MATCH",
+   "tid": "fuzz.P5.0034 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0035 honest receipt MATCH",
+   "tid": "fuzz.P5.0035 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0036 honest receipt MATCH",
+   "tid": "fuzz.P5.0036 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0037 honest receipt MATCH",
+   "tid": "fuzz.P5.0037 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0038 honest receipt MATCH",
+   "tid": "fuzz.P5.0038 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0039 honest receipt MATCH",
+   "tid": "fuzz.P5.0039 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0040 honest receipt MATCH",
+   "tid": "fuzz.P5.0040 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0041 honest receipt MATCH",
+   "tid": "fuzz.P5.0041 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0042 honest receipt MATCH",
+   "tid": "fuzz.P5.0042 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0043 honest receipt MATCH",
+   "tid": "fuzz.P5.0043 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0044 honest receipt MATCH",
-   "ok": false,
-   "detail": "det=member-not-in-chain"
+   "tid": "fuzz.P5.0044 honest bound receipt MATCH",
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0045 honest receipt MATCH",
+   "tid": "fuzz.P5.0045 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0046 honest receipt MATCH",
+   "tid": "fuzz.P5.0046 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0047 honest receipt MATCH",
+   "tid": "fuzz.P5.0047 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0048 honest receipt MATCH",
+   "tid": "fuzz.P5.0048 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0049 honest receipt MATCH",
+   "tid": "fuzz.P5.0049 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0050 honest receipt MATCH",
+   "tid": "fuzz.P5.0050 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0051 honest receipt MATCH",
+   "tid": "fuzz.P5.0051 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0052 honest receipt MATCH",
-   "ok": false,
-   "detail": "det=member-not-in-chain"
+   "tid": "fuzz.P5.0052 honest bound receipt MATCH",
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0053 honest receipt MATCH",
+   "tid": "fuzz.P5.0053 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0054 honest receipt MATCH",
+   "tid": "fuzz.P5.0054 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0055 honest receipt MATCH",
+   "tid": "fuzz.P5.0055 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0056 honest receipt MATCH",
+   "tid": "fuzz.P5.0056 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0057 honest receipt MATCH",
+   "tid": "fuzz.P5.0057 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0058 honest receipt MATCH",
+   "tid": "fuzz.P5.0058 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0059 honest receipt MATCH",
+   "tid": "fuzz.P5.0059 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0060 honest receipt MATCH",
+   "tid": "fuzz.P5.0060 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0061 honest receipt MATCH",
+   "tid": "fuzz.P5.0061 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0062 honest receipt MATCH",
-   "ok": false,
-   "detail": "det=member-not-in-chain"
+   "tid": "fuzz.P5.0062 honest bound receipt MATCH",
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0063 honest receipt MATCH",
+   "tid": "fuzz.P5.0063 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0064 honest receipt MATCH",
+   "tid": "fuzz.P5.0064 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0065 honest receipt MATCH",
+   "tid": "fuzz.P5.0065 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0066 honest receipt MATCH",
+   "tid": "fuzz.P5.0066 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0067 honest receipt MATCH",
+   "tid": "fuzz.P5.0067 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0068 honest receipt MATCH",
+   "tid": "fuzz.P5.0068 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0069 honest receipt MATCH",
+   "tid": "fuzz.P5.0069 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0070 honest receipt MATCH",
+   "tid": "fuzz.P5.0070 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0071 honest receipt MATCH",
-   "ok": false,
-   "detail": "det=member-not-in-chain"
+   "tid": "fuzz.P5.0071 honest bound receipt MATCH",
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0072 honest receipt MATCH",
+   "tid": "fuzz.P5.0072 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0073 honest receipt MATCH",
-   "ok": false,
-   "detail": "det=member-not-in-chain"
+   "tid": "fuzz.P5.0073 honest bound receipt MATCH",
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0074 honest receipt MATCH",
+   "tid": "fuzz.P5.0074 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0075 honest receipt MATCH",
-   "ok": false,
-   "detail": "det=member-not-in-chain"
+   "tid": "fuzz.P5.0075 honest bound receipt MATCH",
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0076 honest receipt MATCH",
-   "ok": false,
-   "detail": "det=member-not-in-chain"
+   "tid": "fuzz.P5.0076 honest bound receipt MATCH",
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0077 honest receipt MATCH",
+   "tid": "fuzz.P5.0077 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0078 honest receipt MATCH",
+   "tid": "fuzz.P5.0078 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0079 honest receipt MATCH",
+   "tid": "fuzz.P5.0079 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0080 honest receipt MATCH",
+   "tid": "fuzz.P5.0080 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0081 honest receipt MATCH",
-   "ok": false,
-   "detail": "det=member-not-in-chain"
+   "tid": "fuzz.P5.0081 honest bound receipt MATCH",
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0082 honest receipt MATCH",
+   "tid": "fuzz.P5.0082 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0083 honest receipt MATCH",
+   "tid": "fuzz.P5.0083 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0084 honest receipt MATCH",
+   "tid": "fuzz.P5.0084 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0085 honest receipt MATCH",
+   "tid": "fuzz.P5.0085 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0086 honest receipt MATCH",
+   "tid": "fuzz.P5.0086 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0087 honest receipt MATCH",
+   "tid": "fuzz.P5.0087 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0088 honest receipt MATCH",
+   "tid": "fuzz.P5.0088 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0089 honest receipt MATCH",
+   "tid": "fuzz.P5.0089 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0090 honest receipt MATCH",
-   "ok": false,
-   "detail": "det=member-not-in-chain"
+   "tid": "fuzz.P5.0090 honest bound receipt MATCH",
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0091 honest receipt MATCH",
+   "tid": "fuzz.P5.0091 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0092 honest receipt MATCH",
+   "tid": "fuzz.P5.0092 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0093 honest receipt MATCH",
+   "tid": "fuzz.P5.0093 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0094 honest receipt MATCH",
+   "tid": "fuzz.P5.0094 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0095 honest receipt MATCH",
+   "tid": "fuzz.P5.0095 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0096 honest receipt MATCH",
+   "tid": "fuzz.P5.0096 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0097 honest receipt MATCH",
+   "tid": "fuzz.P5.0097 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0098 honest receipt MATCH",
+   "tid": "fuzz.P5.0098 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
   {
-   "tid": "fuzz.P5.0099 honest receipt MATCH",
+   "tid": "fuzz.P5.0099 honest bound receipt MATCH",
    "ok": true,
    "detail": "det=MATCH"
   },
@@ -5579,12 +7229,12 @@
   {
    "tid": "fuzz.P10.0000 malformed receipt graceful",
    "ok": true,
-   "detail": "group-mismatch"
+   "detail": "meeting-close-missing"
   },
   {
    "tid": "fuzz.P10.0001 malformed receipt graceful",
    "ok": true,
-   "detail": "group-mismatch"
+   "detail": "meeting-root-missing"
   },
   {
    "tid": "fuzz.P10.0002 malformed receipt graceful",
@@ -5599,7 +7249,7 @@
   {
    "tid": "fuzz.P10.0004 malformed receipt graceful",
    "ok": true,
-   "detail": "meeting-root-missing"
+   "detail": "group-mismatch"
   },
   {
    "tid": "fuzz.P10.0005 malformed receipt graceful",
@@ -5614,7 +7264,7 @@
   {
    "tid": "fuzz.P10.0007 malformed receipt graceful",
    "ok": true,
-   "detail": "group-mismatch"
+   "detail": "meeting-root-missing"
   },
   {
    "tid": "fuzz.P10.0008 malformed receipt graceful",
@@ -5624,7 +7274,7 @@
   {
    "tid": "fuzz.P10.0009 malformed receipt graceful",
    "ok": true,
-   "detail": "meeting-root-missing"
+   "detail": "group-mismatch"
   },
   {
    "tid": "fuzz.P10.0010 malformed receipt graceful",
@@ -5659,7 +7309,7 @@
   {
    "tid": "fuzz.P10.0016 malformed receipt graceful",
    "ok": true,
-   "detail": "meeting-root-missing"
+   "detail": "group-mismatch"
   },
   {
    "tid": "fuzz.P10.0017 malformed receipt graceful",
@@ -5669,12 +7319,12 @@
   {
    "tid": "fuzz.P10.0018 malformed receipt graceful",
    "ok": true,
-   "detail": "meeting-root-missing"
+   "detail": "group-mismatch"
   },
   {
    "tid": "fuzz.P10.0019 malformed receipt graceful",
    "ok": true,
-   "detail": "group-mismatch"
+   "detail": "meeting-root-missing"
   },
   {
    "tid": "fuzz.P10.0020 malformed receipt graceful",
@@ -5704,7 +7354,7 @@
   {
    "tid": "fuzz.P10.0025 malformed receipt graceful",
    "ok": true,
-   "detail": "meeting-close-missing"
+   "detail": "group-mismatch"
   },
   {
    "tid": "fuzz.P10.0026 malformed receipt graceful",
@@ -5719,12 +7369,12 @@
   {
    "tid": "fuzz.P10.0028 malformed receipt graceful",
    "ok": true,
-   "detail": "group-mismatch"
+   "detail": "meeting-root-missing"
   },
   {
    "tid": "fuzz.P10.0029 malformed receipt graceful",
    "ok": true,
-   "detail": "meeting-close-missing"
+   "detail": "group-mismatch"
   },
   {
    "tid": "fuzz.P10.0030 malformed receipt graceful",
@@ -5744,7 +7394,7 @@
   {
    "tid": "fuzz.P10.0033 malformed receipt graceful",
    "ok": true,
-   "detail": "meeting-root-missing"
+   "detail": "group-mismatch"
   },
   {
    "tid": "fuzz.P10.0034 malformed receipt graceful",
@@ -5764,7 +7414,7 @@
   {
    "tid": "fuzz.P10.0037 malformed receipt graceful",
    "ok": true,
-   "detail": "meeting-close-missing"
+   "detail": "meeting-root-missing"
   },
   {
    "tid": "fuzz.P10.0038 malformed receipt graceful",
@@ -5774,7 +7424,7 @@
   {
    "tid": "fuzz.P10.0039 malformed receipt graceful",
    "ok": true,
-   "detail": "group-mismatch"
+   "detail": "meeting-close-missing"
   },
   {
    "tid": "fuzz.P10.0040 malformed receipt graceful",
@@ -5784,7 +7434,7 @@
   {
    "tid": "fuzz.P10.0041 malformed receipt graceful",
    "ok": true,
-   "detail": "group-mismatch"
+   "detail": "meeting-root-missing"
   },
   {
    "tid": "fuzz.P10.0042 malformed receipt graceful",
@@ -5819,12 +7469,12 @@
   {
    "tid": "fuzz.P10.0048 malformed receipt graceful",
    "ok": true,
-   "detail": "meeting-close-missing"
+   "detail": "group-mismatch"
   },
   {
    "tid": "fuzz.P10.0049 malformed receipt graceful",
    "ok": true,
-   "detail": "meeting-root-missing"
+   "detail": "group-mismatch"
   },
   {
    "tid": "fuzz.P10.0050 malformed receipt graceful",
@@ -5839,7 +7489,7 @@
   {
    "tid": "fuzz.P10.0052 malformed receipt graceful",
    "ok": true,
-   "detail": "group-mismatch"
+   "detail": "meeting-root-missing"
   },
   {
    "tid": "fuzz.P10.0053 malformed receipt graceful",
@@ -5854,17 +7504,17 @@
   {
    "tid": "fuzz.P10.0055 malformed receipt graceful",
    "ok": true,
-   "detail": "group-mismatch"
+   "detail": "meeting-root-missing"
   },
   {
    "tid": "fuzz.P10.0056 malformed receipt graceful",
    "ok": true,
-   "detail": "meeting-root-missing"
+   "detail": "group-mismatch"
   },
   {
    "tid": "fuzz.P10.0057 malformed receipt graceful",
    "ok": true,
-   "detail": "meeting-root-missing"
+   "detail": "group-mismatch"
   },
   {
    "tid": "fuzz.P10.0058 malformed receipt graceful",
@@ -5879,7 +7529,7 @@
   {
    "tid": "fuzz.P10.0060 malformed receipt graceful",
    "ok": true,
-   "detail": "group-mismatch"
+   "detail": "meeting-root-missing"
   },
   {
    "tid": "fuzz.P10.0061 malformed receipt graceful",
@@ -5894,12 +7544,12 @@
   {
    "tid": "fuzz.P10.0063 malformed receipt graceful",
    "ok": true,
-   "detail": "meeting-root-missing"
+   "detail": "group-mismatch"
   },
   {
    "tid": "fuzz.P10.0064 malformed receipt graceful",
    "ok": true,
-   "detail": "meeting-root-missing"
+   "detail": "group-mismatch"
   },
   {
    "tid": "fuzz.P10.0065 malformed receipt graceful",
@@ -5909,7 +7559,7 @@
   {
    "tid": "fuzz.P10.0066 malformed receipt graceful",
    "ok": true,
-   "detail": "group-mismatch"
+   "detail": "meeting-root-missing"
   },
   {
    "tid": "fuzz.P10.0067 malformed receipt graceful",
@@ -5924,17 +7574,17 @@
   {
    "tid": "fuzz.P10.0069 malformed receipt graceful",
    "ok": true,
-   "detail": "meeting-root-missing"
+   "detail": "group-mismatch"
   },
   {
    "tid": "fuzz.P10.0070 malformed receipt graceful",
    "ok": true,
-   "detail": "meeting-root-missing"
+   "detail": "group-mismatch"
   },
   {
    "tid": "fuzz.P10.0071 malformed receipt graceful",
    "ok": true,
-   "detail": "group-mismatch"
+   "detail": "meeting-root-missing"
   },
   {
    "tid": "fuzz.P10.0072 malformed receipt graceful",
@@ -5944,7 +7594,7 @@
   {
    "tid": "fuzz.P10.0073 malformed receipt graceful",
    "ok": true,
-   "detail": "meeting-root-missing"
+   "detail": "group-mismatch"
   },
   {
    "tid": "fuzz.P10.0074 malformed receipt graceful",
@@ -5979,7 +7629,7 @@
   {
    "tid": "fuzz.P10.0080 malformed receipt graceful",
    "ok": true,
-   "detail": "group-mismatch"
+   "detail": "meeting-root-missing"
   },
   {
    "tid": "fuzz.P10.0081 malformed receipt graceful",
@@ -5989,12 +7639,12 @@
   {
    "tid": "fuzz.P10.0082 malformed receipt graceful",
    "ok": true,
-   "detail": "group-mismatch"
+   "detail": "meeting-root-missing"
   },
   {
    "tid": "fuzz.P10.0083 malformed receipt graceful",
    "ok": true,
-   "detail": "group-mismatch"
+   "detail": "meeting-root-missing"
   },
   {
    "tid": "fuzz.P10.0084 malformed receipt graceful",
@@ -6009,22 +7659,22 @@
   {
    "tid": "fuzz.P10.0086 malformed receipt graceful",
    "ok": true,
-   "detail": "meeting-close-missing"
+   "detail": "group-mismatch"
   },
   {
    "tid": "fuzz.P10.0087 malformed receipt graceful",
    "ok": true,
-   "detail": "meeting-root-missing"
+   "detail": "group-mismatch"
   },
   {
    "tid": "fuzz.P10.0088 malformed receipt graceful",
    "ok": true,
-   "detail": "meeting-root-missing"
+   "detail": "group-mismatch"
   },
   {
    "tid": "fuzz.P10.0089 malformed receipt graceful",
    "ok": true,
-   "detail": "meeting-root-missing"
+   "detail": "group-mismatch"
   },
   {
    "tid": "fuzz.P10.0090 malformed receipt graceful",
@@ -6034,7 +7684,7 @@
   {
    "tid": "fuzz.P10.0091 malformed receipt graceful",
    "ok": true,
-   "detail": "group-mismatch"
+   "detail": "meeting-root-missing"
   },
   {
    "tid": "fuzz.P10.0092 malformed receipt graceful",
@@ -6044,12 +7694,12 @@
   {
    "tid": "fuzz.P10.0093 malformed receipt graceful",
    "ok": true,
-   "detail": "group-mismatch"
+   "detail": "meeting-root-missing"
   },
   {
    "tid": "fuzz.P10.0094 malformed receipt graceful",
    "ok": true,
-   "detail": "meeting-root-missing"
+   "detail": "group-mismatch"
   },
   {
    "tid": "fuzz.P10.0095 malformed receipt graceful",
@@ -6069,7 +7719,7 @@
   {
    "tid": "fuzz.P10.0098 malformed receipt graceful",
    "ok": true,
-   "detail": "meeting-root-missing"
+   "detail": "group-mismatch"
   },
   {
    "tid": "fuzz.P10.0099 malformed receipt graceful",

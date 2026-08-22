@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
-"""t_server.py - live HTTP attack matrix against server.py Handler.
-Spawns the real Handler on an ephemeral port (never touches :8123).
-Every test talks real HTTP; expectation style: SAFE = defense must hold,
-VULN = flaw confirmed present.
-"""
+"""t_server.py - live HTTP attack matrix vs CURRENT HEAD server.py (post PR4/5/6).
+Expectation style: SAFE = defense must hold, VULN = flaw confirmed present."""
 import http.client, json, sys, os, threading, time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from http.server import HTTPServer
@@ -44,39 +41,43 @@ def run():
     httpd = start()
     time.sleep(0.2)
 
-    # baseline
+    # baseline: M07 now starts OPEN (amber pending)
     st, stb = state()
-    t("SAFE.http.base.001 /api/state returns MATCH verdict", st == 200 and stb["verdict"] is True, "%s %s" % (st, stb.get("detail")))
-    st, _hdrs, body = req("/")
-    t("SAFE.http.base.002 index serves HTML", st == 200 and "<!doctype html>" in body.lower() or "<!doctype html>" in body.lower() or "BAHI" in body, str(st))
-    st, _hdrs, body = req("/nonexistent")
+    t("chain.http.base.001 /api/state reports MEETING OPEN (amber Pending)",
+      st == 200 and stb["verdict"] is None and "OPEN" in stb["detail"] and stb["receipt"] is None,
+      "%s %s" % (st, stb.get("detail")))
+    st, _h, body = req("/")
+    t("SAFE.http.base.002 index serves HTML", st == 200 and "BAHI" in body, str(st))
+    st, _h, body = req("/nonexistent")
     t("VULN.http.base.003 unknown path serves the app (no 404)", st == 200 and "BAHI" in body,
-      "every unknown URL (including /etc/passwd, /admin) returns the demo HTML: no 404, no route distinction")
+      "every unknown URL returns the demo HTML: no 404, no route distinction")
     st, hdrs, body = req("/api/state")
     t("SAFE.http.base.004 JSON content-type", hdrs.get("Content-Type", "").startswith("application/json"), str(hdrs.get("Content-Type")))
 
     # -------- GET side effects (CSRF surface) --------
+    # attack while OPEN is a no-op (fixed); attack after CLOSE still mutates via GET
     srv.rebuild()
-    st, stb = state()
-    st, _hdrs, body = req("/api/attack")
+    st, _h, body = req("/api/close")
+    st, _h, body = req("/api/attack")
+    d = json.loads(body)
     st2, stb2 = state()
-    t("VULN.http.csrf.001 GET /api/attack mutates ledger state (state-changing GET, no CSRF token)",
-      stb["verdict"] is True and stb2["verdict"] is False,
-      "plain GET permanently alters the chain; <img src=http://localhost:8123/api/attack> triggers it with NO Origin header")
+    t("VULN.http.csrf.001 GET /api/attack AFTER close mutates ledger state (state-changing GET, no CSRF token)",
+      d.get("verdict") is False and stb2["verdict"] is False,
+      "plain GET permanently alters the chain post-close; <img src=http://localhost:8123/api/attack> triggers it (no Origin header sent for image GETs)")
     srv.rebuild()
     st, _h, body = req("/api/entry?type=contribution&paise=500")
     st2, stb2 = state()
-    t("SAFE.http.csrf.002 GET /api/entry appends event", st == 200 and len(stb2["events"]) == 10 and stb2["events"][-1]["amount_paise"] == 500,
-      "GET /api/entry is a write (append). Any cross-site GET (img/form/link) can write ledger entries")
-    n0 = len(json.loads(req("/api/state")[2])["events"])
+    t("SAFE.http.csrf.002 GET /api/entry appends event while open", st == 200 and len(stb2["events"]) == 9 and stb2["events"][-1]["amount_paise"] == 500,
+      "GET /api/entry is a write (append). Any cross-site GET (img/form/link) can still write ledger entries while the meeting is open")
     st, _h, body = req("/api/close")
     st2, stb2 = state()
-    t("SAFE.http.csrf.003 GET /api/close issues receipt", st == 200 and stb2["verdict"] is True and stb2["receipt"]["meeting"] == "M08", stb2["receipt"]["meeting"])
+    t("SAFE.http.csrf.003 GET /api/close closes M07 + issues bound receipt", st == 200 and stb2["verdict"] is True and stb2["receipt"]["meeting"] == "M07", stb2["receipt"]["meeting"])
+    t("SAFE.http.csrf.003b close receipt carries member_events", stb2["receipt"].get("member_events") is not None, str(stb2["receipt"].get("member_events"))[:60])
     st, _h, body = req("/api/reset")
     st2, stb2 = state()
-    t("SAFE.http.csrf.004 GET /api/reset resets", st == 200 and stb2["verdict"] is True and len(stb2["events"]) == 9)
-    t("VULN.http.csrf.005 atomic CSRF chain: single img can attack+reset in sequence",
-      True, "all four state-changing endpoints are GET: <img src=.../api/attack> <img src=.../api/entry> <img src=.../api/close> run on page load")
+    t("SAFE.http.csrf.004 GET /api/reset resets to open state", st == 200 and stb2["verdict"] is None and len(stb2["events"]) == 8 and stb2["receipt"] is None)
+    t("VULN.http.csrf.005 all four state-changing endpoints are still GET",
+      True, "<img src=.../api/attack> runs on page load; POST is 501 so no CSRF token infrastructure exists")
 
     # -------- parameter handling --------
     srv.rebuild()
@@ -105,43 +106,44 @@ def run():
     t("chain.http.param.006 huge paise accepted (arbitrary precision)", stb["events"][-1]["amount_paise"] == 10**20)
     req("/api/entry?type=" + "x" * 5000 + "&paise=100")
     st, stb = state()
-    t("VULN.http.param.007 5KB event type accepted into chain", len(stb["events"][-1]["type"]) == 5000,
-      "no type length limit: chain/state bloat via API; UI table renders it raw")
+    t("SAFE.http.param.007 5KB type whitelisted to contribution (XSS fix holds)",
+      stb["events"][-1]["type"] == "contribution", "type field sanitized server-side")
     req("/api/entry?type=%E0%A4%95%E0%A5%8D%E0%A4%B0%E0%A4%AE%E0%A4%A3&paise=100")
     st, stb = state()
-    t("chain.http.param.008 unicode type roundtrips", stb["events"][-1]["type"] == "क्रमण")
+    t("SAFE.http.param.008 unicode type whitelisted to contribution (allowed types only)",
+      stb["events"][-1]["type"] == "contribution", "unicode types no longer reach the chain via API")
 
-    # -------- XSS surface (type unvalidated -> innerHTML sink) --------
+    # -------- XSS surface (server-side whitelist fixed; UI escape present) --------
     payload = '<img src=x onerror="document.body.setAttribute(\'data-xss\',\'PWNED\')">'
     import urllib.parse
     req("/api/entry?type=" + urllib.parse.quote(payload) + "&paise=100")
     st, stb = state()
-    stored = stb["events"][-1]["type"]
-    t("VULN.http.xss.001 attacker type payload stored verbatim in /api/state",
-      payload in stored,
-      "the UI inserts e.type via innerHTML (INDEX_HTML chainstable builder) with NO escaping -> stored XSS on /")
-    t("VULN.http.xss.002 no sanitizer in page JS",
-      "escape" not in srv.INDEX_HTML and "textContent" not in srv.INDEX_HTML.split("table")[0] and "innerHTML" in srv.INDEX_HTML,
-      "chain table built with innerHTML; no escape function anywhere in INDEX_HTML")
+    t("SAFE.http.xss.001 attacker type payload neutralized to contribution (stored XSS blocked server-side)",
+      stb["events"][-1]["type"] == "contribution", "whitelist replaces the payload with contribution")
+    t("SAFE.http.xss.002 esc() present on chain table render path",
+      "function esc(s)" in srv.INDEX_HTML and "esc(e.member)" in srv.INDEX_HTML and "esc(e.type)" in srv.INDEX_HTML,
+      "PR6 UI escaping added to show() table builder")
     req("/api/entry?type=MEETING-CLOSE&paise=666")
     st, stb = state()
-    t("VULN.http.xss.003 API lets clients forge MEETING-CLOSE type events",
-      stb["events"][-1]["type"] == "MEETING-CLOSE" and stb["events"][-1]["amount_paise"] == 666,
-      "only close_meeting() should create MEETING-CLOSE events; /api/entry mints them with arbitrary amount")
+    t("SAFE.http.xss.003 MEETING-CLOSE type via /api/entry neutralized (protocol pollution fixed)",
+      stb["events"][-1]["type"] == "contribution", "clients can no longer mint MEETING-CLOSE events")
 
-    # -------- Host / Origin guards --------
+    # -------- Host / Origin guards (PR6 hostname parse) --------
     for host, expect in (
         ("127.0.0.1", 200), ("localhost", 200), ("127.0.0.1:8123", 200),
-        ("127.0.0.1.evil.com", 200), ("localhost.evil.com", 200),
-        ("127.0.0.1:8123.attacker.com", 200),
+        ("127.0.0.1.evil.com", 403), ("localhost.evil.com", 403),
         ("evil.com", 403), ("", 403),
     ):
         st, _, _ = req("/api/state", host=host)
         if expect == 200:
-            t("VULN.http.host.%r accepted" % host, st == 200,
-              "Host prefix check bypassed: startswith('127.0.0.1')/'localhost' -> %r slips past" % host)
+            t("chain.http.host.%r accepted" % host, st == 200, str(st))
         else:
             t("SAFE.http.host.%r rejected" % host, st == 403, str(st))
+    # PR6 parser hole: split(':')[0] strips port, suffix after port still passes
+    st, _, _ = req("/api/state", host="127.0.0.1:8123.attacker.com")
+    t("VULN.http.host.port-suffix '127.0.0.1:8123.attacker.com' accepted (split(:)[0] strips everything after the port)",
+      st == 200,
+      "hostname = host.split(':')[0] = '127.0.0.1': any Host starting '127.0.0.1:' + arbitrary suffix passes; naive split, not a real hostname parse (browser-unreachable via DNS today, but the guard's intent is broken and any 0.0.0.0 bind makes it live)")
     for origin, expect in (
         ("http://127.0.0.1:8123", 200), ("http://localhost:8123", 200),
         ("http://127.0.0.1.evil.com", 200),
@@ -150,21 +152,18 @@ def run():
     ):
         st, _, _ = req("/api/state", origin=origin)
         if expect == 200:
-            t("VULN.http.origin.%r accepted" % origin, st == 200,
-              "Origin substring check bypassed ('127.0.0.1'/'localhost' anywhere in the Origin string passes)")
+            t("VULN.http.origin.%r accepted (substring check)" % origin, st == 200,
+              "Origin guard is still a SUBSTRING check ('127.0.0.1' anywhere passes): not an exact-origin compare")
         else:
             t("SAFE.http.origin.%r rejected" % origin, st == 403, str(st))
-    # no Origin at all: passes -> classic cross-site GET (img) path
     st, _, _ = req("/api/entry?type=contribution&paise=1")
     t("VULN.http.origin.none missing Origin header passes state-changing request",
-      st == 200, "Origin absent (img/form GET) -> guard skipped completely: DNS-rebinding CSRF executes")
-    # full rebinding combo
+      st == 200, "Origin absent (img/form GET) -> guard skipped entirely: GET-CSRF path survives the Host fix")
+    # full rebinding combo now blocked at Host
     srv.rebuild()
-    st, _hdrs, body = req("/api/attack", host="127.0.0.1.evil.com", origin="http://127.0.0.1.evil.com")
-    st2, stb2 = state()
-    t("VULN.http.rebind.001 full DNS-rebinding attack (Host+Origin bypass) mutates ledger",
-      st == 200 and stb2["verdict"] is False,
-      "rebind 127.0.0.1.evil.com -> 127.0.0.1: browser loads attacker JS from same origin, drives every GET endpoint")
+    st, _h, body = req("/api/attack", host="127.0.0.1.evil.com", origin="http://127.0.0.1.evil.com")
+    t("SAFE.http.rebind.001 hostname-parse fix blocks DNS-rebinding Host", st == 403,
+      "127.0.0.1.evil.com -> hostname '127.0.0.1.evil.com' not in allowlist -> 403")
 
     # -------- methods --------
     st, _, _ = req("/api/state", method="POST")
@@ -174,37 +173,35 @@ def run():
     st, _, _ = req("/api/state", method="DELETE")
     t("SAFE.http.method.003 DELETE rejected", st in (501, 405), str(st))
     st, _, _ = req("/api/state", method="OPTIONS")
-    t("chain.http.method.004 OPTIONS -> 501 (no CORS headers, no preflight support)", st == 501, str(st))
+    t("chain.http.method.004 OPTIONS -> 501 (no CORS preflight)", st == 501, str(st))
     st, hdrs, body = req("/", method="HEAD")
-    t("SAFE.http.method.005 HEAD aliases GET", st == 200 and body == "", "no body, no crash")
+    t("SAFE.http.method.005 HEAD headers only, no body (PR5)", st == 200 and body == "" and "Content-Length" in hdrs, str(hdrs.get("Content-Length")))
 
     # -------- path weirdness --------
-    st, _hdrs, body = req("/api/../api/state")
+    st, _h, body = req("/api/../api/state")
     t("chain.http.path.001 dotdot path no traversal (serves HTML)", st == 200 and "BAHI" in body)
-    st, _hdrs, body = req("/%61pi/state")
+    st, _h, body = req("/%61pi/state")
     t("chain.http.path.002 percent-encoded path not decoded", st == 200 and "BAHI" in body)
-    st, _hdrs, body = req("/api/state%00.png")
+    st, _h, body = req("/api/state%00.png")
     t("chain.http.path.003 null byte in path", st == 200)
 
-    # -------- repeated operations --------
+    # -------- repeated operations (open-meeting flow) --------
     srv.rebuild()
     req("/api/close")
-    req("/api/close")
-    st, stb = state()
-    closes = [e for e in stb["events"] if e["type"] == "MEETING-CLOSE"]
-    t("VULN.http.repeat.001 double /api/close: second close overwrites M08 root metadata",
-      len(closes) == 4 and stb["receipt"]["meeting"] == "M08",
-      "nxt is HARDCODED 'M08': two M08 MEETING-CLOSE events exist but roots[] holds ONE M08 entry (the later one); the first M08 root is destroyed -> prior M08 receipts FORK")
-    srv.rebuild()
-    req("/api/close")
-    req("/api/entry?type=contribution&paise=100")
-    st, stb = state()
-    t("VULN.http.repeat.002 /api/entry after /api/close accepted -> receipt invalidated (events-after-close)",
-      stb["verdict"] is False and "events-after-close" in stb["detail"],
-      "server happily books entries after close instead of refusing; the member's fresh receipt instantly breaks")
-    st, _hdrs, body = req("/api/close")
+    st, _h, body = req("/api/close")
+    j = json.loads(body)
     st2, stb2 = state()
-    t("SAFE.http.repeat.003 re-close after post-close entry repairs verdict", st2 == 200 and stb2["verdict"] is True)
+    closes = [e for e in stb2["events"] if e["type"] == "MEETING-CLOSE"]
+    t("SAFE.http.repeat.001 second /api/close rejected (already closed)", j.get("ok") is False and len(closes) == 2,
+      "M06+M07 closes only; no duplicate M07 root this pass")
+    srv.rebuild()
+    req("/api/close")
+    st, _h, body = req("/api/entry?type=contribution&paise=100")
+    j = json.loads(body)
+    st2, stb2 = state()
+    t("SAFE.http.repeat.002 /api/entry after /api/close rejected (receipt stays MATCH)",
+      j.get("ok") is False and stb2["verdict"] is True, "post-close entry now refused; terminality protected")
+    # reset orphans: covered in t_v2.reset-orphan
 
     # -------- response hygiene --------
     httpd.shutdown()
