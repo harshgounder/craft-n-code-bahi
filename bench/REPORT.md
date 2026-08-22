@@ -17,6 +17,29 @@ digital ledger).
 > New round-3 findings (against the *fixed* code) and the full 70-vector threat
 > catalog live in **[`ATTACK-CATALOG.md`](ATTACK-CATALOG.md)**.
 
+> ## RESOLUTION (round 4)
+> This round resolved the **HMAC-symmetric caveat** (offline members could not
+> verify a witness signature without the shared secret) by adding **Ed25519**
+> asymmetric witness signatures: each witness keeps a private key, publishes a
+> public key that rides on the receipt, and any member verifies offline with no
+> secret and no custody. See `../demo_ed25519.py` and `../docs/PRODUCT-DECISIONS.md`.
+>
+> It also added a **high-volume deterministic fuzz + benchmark battery** and used
+> it to find and fix a real crash-resistance gap (non-dict / field-missing events
+> from a hand-edited JSON crashed `verify()` / `hint_flags()` / `export_csv()` /
+> `balances()`). Summary:
+>
+> | Item | Result |
+> |---|---|
+> | Ed25519 witness signatures | offline verify MATCH (no keys), tamper -> invalid |
+> | Server auditor panel | hints escaped server-side + severity-tagged + legend/count |
+> | CSV/XSS sanitizers | extracted (`csv_safe_cell`, `html_escape`) + fuzzed 2400 payloads |
+> | Crash-resistance | non-dict / missing-field events now return structured verdicts |
+> | `attack_fuzz.py` | **10,424 probes, 0 failed** (6 suites) |
+> | `benchmark_matrix.py` | **11,180 timed samples** (11 microbench ops + 12-size sweep) |
+> | `tests.py` | **50/50 pass** (incl. 9 Ed25519 cases) |
+> | Non-code decisions | **33 items** documented in `../docs/PRODUCT-DECISIONS.md` |
+
 - **Audited snapshot:** `d8e7511` (`SNAPSHOT_SHA.txt`) — source frozen in `src/`.
   Note: the upstream repo is under active, concurrent development; several
   findings below were already fixed by the time this report was written.

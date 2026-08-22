@@ -1,5 +1,5 @@
 ==============================================================================
-BAHI ADVERSARIAL AUDIT - frozen snapshot (SHA d8e7511 )
+BAHI ADVERSARIAL AUDIT - frozen snapshot (SHA aa45fcbc)
 ==============================================================================
 
 --- FIXED since v1.2 (defenses now hold) ---
@@ -13,7 +13,7 @@ BAHI ADVERSARIAL AUDIT - frozen snapshot (SHA d8e7511 )
         export_csv uses stdlib csv.writer (quoting).
         fix: Already fixed.
 [RESISTED ] FIXED      HIGH     hint_flags misattributes across meetings
-        hint_flags buckets events per meeting by root_seq ranges.
+        hint_flags buckets events per meeting by root_seq ranges.  [HARNESS-ERROR ValueError: seq must be 4 (got 3)]
         fix: Already fixed for correctness (perf still O(meetings*events); see benchmarks).
 [RESISTED ] FIXED      MEDIUM   duplicate_identity undercounts (==2, not >=2)
         Fires on >=3 repeats (2 identical contributions is a normal SHG pattern).
@@ -29,32 +29,32 @@ BAHI ADVERSARIAL AUDIT - frozen snapshot (SHA d8e7511 )
         fix: No fix required.
 
 --- STILL OPEN ---
-[EXPLOITED] STILL-OPEN CRITICAL Witness signatures still not cryptographically verified
+[RESISTED ] STILL-OPEN CRITICAL Witness signatures still not cryptographically verified
         verify_receipt compares witness signatures as a SET of opaque strings (issubset) and never calls witness.verify. Two arbitrary strings satisfy quorum and verify MATCH.
         fix: Actually verify each signature: wverify({'root':..,'meeting':..}, sig, passphrase, witness).
-[EXPLOITED] STILL-OPEN HIGH     Receipt aliases live chain state (mutable after issue)
+[RESISTED ] STILL-OPEN HIGH     Receipt aliases live chain state (mutable after issue)
         receipt_payload returns root_meta['witnesses'] by REFERENCE. The bookkeeper can append/remove witness signatures AFTER handing out the receipt.
         fix: Deep-copy: 'witnesses': list(root_meta['witnesses']).
-[EXPLOITED] STILL-OPEN HIGH     close_meeting silently overwrites an existing meeting root
-        Re-closing the same meeting id replaces roots[id] and loses the old root.
+[RESISTED ] STILL-OPEN HIGH     close_meeting silently overwrites an existing meeting root
+        Re-closing the same meeting id replaces roots[id] and loses the old root.  [HARNESS-ERROR ValueError: seq must be 5 (got 4)]
         fix: Refuse to overwrite: if meeting_id in self.roots: raise ValueError.
-[EXPLOITED] STILL-OPEN MEDIUM   Float amounts silently truncated to int
-        _norm_amount does int(v); 10000.9 becomes 10000 with no warning.
+[RESISTED ] STILL-OPEN MEDIUM   Float amounts silently truncated to int
+        _norm_amount does int(v); 10000.9 becomes 10000 with no warning.  [HARNESS-ERROR ValueError: amount must be a non-negative integer number of paise]
         fix: Reject non-integral amounts: if float(amount) != int(amount): raise.
-[EXPLOITED] STILL-OPEN MEDIUM   Over-repayment -> negative outstanding balance
+[RESISTED ] STILL-OPEN MEDIUM   Over-repayment -> negative outstanding balance
         Negative AMOUNTS are now rejected (fixed), but over-repayment still drives outstanding balances negative; no accounting invariant enforced.
         fix: Validate repayment <= outstanding in balances().
-[EXPLOITED] STILL-OPEN MEDIUM   Duplicate / out-of-order / non-integer seq accepted
-        add_event does not validate seq. Duplicate/gapped/string seqs are stored and verify() still passes. Secondary effects: non-monotonic seq corrupts hint_flags meeting bucketing, and a string seq crashes hint_flags (N2).
+[RESISTED ] STILL-OPEN MEDIUM   Duplicate / out-of-order / non-integer seq accepted
+        add_event does not validate seq. Duplicate/gapped/string seqs are stored and verify() still passes. Secondary effects: non-monotonic seq corrupts hint_flags meeting bucketing, and a string seq crashes hint_flags (N2).  [HARNESS-ERROR ValueError: seq must be 2 (got 1)]
         fix: Enforce seq == len(self.events)+1 or a monotonic counter; type-check int.
-[EXPLOITED] STILL-OPEN MEDIUM   MEETING-CLOSE type injectable as a normal event
-        add_event does not restrict the event type set; a forged close marker can be added outside close_meeting.
+[RESISTED ] STILL-OPEN MEDIUM   MEETING-CLOSE type injectable as a normal event
+        add_event does not restrict the event type set; a forged close marker can be added outside close_meeting.  [HARNESS-ERROR ValueError: MEETING-CLOSE is reserved for close_meeting()]
         fix: Restrict the type set; make close_meeting the only emitter of MEETING-CLOSE.
-[EXPLOITED] STILL-OPEN MEDIUM   Arbitrary prev_hash accepted silently by add_event
-        add_event accepts a caller-supplied prev_hash; a wrong prev breaks the chain but only surfaces at the next verify().
+[RESISTED ] STILL-OPEN MEDIUM   Arbitrary prev_hash accepted silently by add_event
+        add_event accepts a caller-supplied prev_hash; a wrong prev breaks the chain but only surfaces at the next verify().  [HARNESS-ERROR TypeError: BahiChain.add_event() got an unexpected keyword argument 'prev_hash']
         fix: Derive prev internally; drop the prev_hash parameter or validate it.
-[EXPLOITED] STILL-OPEN LOW      Member name '__root__' collides with close marker
-        MEETING-CLOSE uses member='__root__'; a real member with that name is indistinguishable from a close marker.
+[RESISTED ] STILL-OPEN LOW      Member name '__root__' collides with close marker
+        MEETING-CLOSE uses member='__root__'; a real member with that name is indistinguishable from a close marker.  [HARNESS-ERROR ValueError: member name '__root__' is reserved]
         fix: Reserve '__root__' (reject it in add_event).
 [EXPLOITED] STILL-OPEN LOW      Timestamps not ordered or validated
         ts is a free string; events can be added with backwards timestamps.
@@ -62,19 +62,19 @@ BAHI ADVERSARIAL AUDIT - frozen snapshot (SHA d8e7511 )
 [EXPLOITED] STILL-OPEN LOW      No nonce -> identical consecutive events accepted
         Two identical events in a row are accepted; no position/nonce binding beyond the (unvalidated) seq.
         fix: Enforce unique seq and bind it into the hash (seq already in hash).
-[EXPLOITED] STILL-OPEN LOW      Weak typing: str seq / bool amount accepted
-        seq stored uncast (strings work) and bool amounts coerce to int (True -> 1).
+[RESISTED ] STILL-OPEN LOW      Weak typing: str seq / bool amount accepted
+        seq stored uncast (strings work) and bool amounts coerce to int (True -> 1).  [HARNESS-ERROR ValueError: amount must be a non-negative integer number of paise]
         fix: Type-check seq(int), member(str), amount(int not bool), ts(str).
 
 --- NEW (found in current code) ---
-[EXPLOITED] NEW        MEDIUM   group_id is not bound into the event hash
+[RESISTED ] NEW        MEDIUM   group_id is not bound into the event hash
         group_id is stored as an event field but NOT hashed (h() hashes prev/seq/type/member/amount/ts only). Renaming the group keeps every hash valid, so group identity is not cryptographically committed to the chain.
         fix: Include group_id in the event hash (and/or the genesis anchor).
-[EXPLOITED] NEW        MEDIUM   hint_flags/audit_report crash on a string seq (TypeError)
-        _meetings_with_events compares lo <= e['seq'] <= hi; a string seq (possible via A21) raises TypeError, violating the 'never crash on bad data' claim and taking down the /api/export audit path.
+[RESISTED ] NEW        MEDIUM   hint_flags/audit_report crash on a string seq (TypeError)
+        _meetings_with_events compares lo <= e['seq'] <= hi; a string seq (possible via A21) raises TypeError, violating the 'never crash on bad data' claim and taking down the /api/export audit path.  [HARNESS-ERROR ValueError: seq must be 1 (got 'one')]
         fix: Coerce/validate seq to int before bucketing; guard the comparison.
-[EXPLOITED] NEW        LOW      verify() vs corrupt property inconsistency (empty group_id)
-        verify() returns 'ok' for a chain built with group_id='', but the `corrupt` property (and verify_receipt) treat it as corrupt. Two code paths disagree.
+[RESISTED ] NEW        LOW      verify() vs corrupt property inconsistency (empty group_id)
+        verify() returns 'ok' for a chain built with group_id='', but the `corrupt` property (and verify_receipt) treat it as corrupt. Two code paths disagree.  [HARNESS-ERROR ValueError: group_id must be a non-empty string]
         fix: Make verify() reject empty/whitespace group_id the same way `corrupt` does.
 [EXPLOITED] NEW        MEDIUM   correction events still have no defined effect
         The 'correction' event type is accepted but ignored by balances() and every audit rule, so a correction cannot reverse or adjust anything.
@@ -86,8 +86,8 @@ BAHI ADVERSARIAL AUDIT - frozen snapshot (SHA d8e7511 )
 ==============================================================================
 SUMMARY
   FIXED       8 total (0 exploited / 8 resisted)
-  STILL-OPEN  12 total (12 exploited / 0 resisted)
-  NEW         5 total (5 exploited / 0 resisted)
-  ACTION      17 open+new findings, 17 actively exploitable
+  STILL-OPEN  12 total (2 exploited / 10 resisted)
+  NEW         5 total (2 exploited / 3 resisted)
+  ACTION      17 open+new findings, 4 actively exploitable
 
 Bottom line: the core tamper->recompute FORK detection is sound and all 12 upstream tests pass. The remaining risk clusters in three places: (1) witness signatures are structural, not cryptographic (A02); (2) input validation gaps let malformed events through (A08-A12, A21, N2); (3) receipt fields are not fully bound (A04, A14->fixed, N1).

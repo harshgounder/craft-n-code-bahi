@@ -1,0 +1,12 @@
+==============================================================================
+BAHI attack-surface fuzz  (deterministic, seeded)
+==============================================================================
+  csv_injection_fuzz        1200 probes   0 failed
+  xss_fuzz                  1204 probes   0 failed
+  chain_mutation_fuzz       1320 probes   0 failed
+  property_fuzz             4500 probes   0 failed
+  receipt_tamper_fuzz       1200 probes   0 failed
+  type_confusion_fuzz       1000 probes   0 failed
+------------------------------------------------------------------------------
+TOTAL: 10424 probes, 10424 passed, 0 failed
+==============================================================================

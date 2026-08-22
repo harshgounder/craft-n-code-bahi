@@ -3,10 +3,10 @@
 
 Usage:  python3 run_all.py
 
-Runs attacks.py, stress_tests.py, benchmarks.py in order, echoes each to the
-terminal, and writes the raw output to output/*.txt. Returns non-zero if
-stress_tests reports any FAIL (attacks.py "EXPLOITED" is expected and does not
-fail the run).
+Runs attacks.py, stress_tests.py, benchmarks.py, attack_fuzz.py,
+benchmark_matrix.py in order, echoes each to the terminal, and writes the raw
+output to output/*.txt. Returns non-zero if stress_tests or attack_fuzz reports
+any FAIL (attacks.py "EXPLOITED" is expected and does not fail the run).
 """
 import os, subprocess, sys
 
@@ -15,9 +15,11 @@ OUT = os.path.join(HERE, "output")
 os.makedirs(OUT, exist_ok=True)
 
 SUITES = [
-    ("attacks.py", "attacks.txt", False),       # (file, output, fail_on_nonzero)
-    ("stress_tests.py", "stress.txt", True),
-    ("benchmarks.py", "benchmarks.txt", False),
+    ("attacks.py", "attacks.txt", False),           # 25 findings, EXPLOITED is expected
+    ("stress_tests.py", "stress.txt", True),        # 12 robustness probes
+    ("benchmarks.py", "benchmarks.txt", False),     # throughput + scaling
+    ("attack_fuzz.py", "fuzz.txt", True),           # 10k+ seeded fuzz probes
+    ("benchmark_matrix.py", "bench_matrix.txt", False),  # 11k+ timed samples
 ]
 
 exit_code = 0

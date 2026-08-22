@@ -3,41 +3,35 @@ BAHI BENCHMARKS  (win32, Python 3.11.15)
 ========================================================================
 
 [A] MICRO
-  h() hash                       730702 ops/s   (200.0k ops in 0.274s)
-  add_event append               450357 ev/s    (100.0k events in 0.222s)
-  witness sign (HMAC)            149985 sig/s   (20.0k sigs in 0.133s)
-  witness verify (HMAC)          149286 ver/s   (20.0k verifs in 0.134s)
+  h() hash                       716707 ops/s   (200.0k ops in 0.279s)
+  add_event append               365884 ev/s    (100.0k events in 0.273s)
+  witness sign (HMAC)            149229 sig/s   (20.0k sigs in 0.134s)
+  witness verify (HMAC)          145367 ver/s   (20.0k verifs in 0.138s)
 
 [B] VERIFY (full recompute, O(N))
   verify(1.0k events)               0.002s   ok=True
-  verify(10.0k events)               0.018s   ok=True
-  verify(100.0k events)               0.186s   ok=True
-  verify(1.00M events)               1.840s   ok=True
+  verify(10.0k events)               0.021s   ok=True
+  verify(100.0k events)               0.220s   ok=True
+  verify(1.00M events)               2.310s   ok=True
 
 [C] DERIVED VIEWS
   balances(1.0k events)             0.000s
-  export_csv(1.0k events)           0.001s
-  balances(10.0k events)             0.001s
-  export_csv(10.0k events)           0.013s
-  balances(100.0k events)             0.008s
-  export_csv(100.0k events)           0.137s
+  export_csv(1.0k events)           0.002s
+  balances(10.0k events)             0.002s
+  export_csv(10.0k events)           0.030s
+  balances(100.0k events)             0.018s
+  export_csv(100.0k events)           0.238s
 
 [D] HINT_FLAGS (meeting-scaling at FIXED event count; still O(M*E))
-  hint_flags(events=4.0k, meetings=  1)     0.010s   (79 flags)
-  hint_flags(events=4.0k, meetings= 10)     0.028s   (766 flags)
-  hint_flags(events=4.0k, meetings= 50)     0.006s   (50 flags)
-  hint_flags(events=4.0k, meetings=100)     0.011s   (100 flags)
-  hint_flags(events=4.0k, meetings=200)     0.023s   (201 flags)
-  hint_flags(events=4.0k, meetings=500)     0.054s   (833 flags)
+  hint_flags(events=4.0k, meetings=  1)     0.005s   (102 flags)
 
-[E] IO
-  save(100k events)               0.668s   (31.83M bytes + .bak)
-  load(100k events)               0.144s   (events=100001)
-  verify_receipt                 0.2069s   (quorum-fail: 0 witness)
-
-[F] MEMORY (tracemalloc, 500k events)
-  build 500k events            peak 254 MB
-  verify()                     2.517s   peak 254 MB
-
-========================================================================
-DONE
+--- STDERR ---
+Traceback (most recent call last):
+  File "C:\Users\shukl\AppData\Local\Temp\bahi-pr\bench\benchmarks.py", line 92, in <module>
+    c = build(E, meetings=M)
+        ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\shukl\AppData\Local\Temp\bahi-pr\bench\benchmarks.py", line 39, in build
+    c.add_event(seq, "loan", "M%d" % (i % 100), 50000 + i, TS)
+  File "C:\Users\shukl\AppData\Local\Temp\bahi-pr\bench\src\chain.py", line 155, in add_event
+    raise ValueError("seq must be %d (got %r)" % (expected, seq))
+ValueError: seq must be 402 (got 401)

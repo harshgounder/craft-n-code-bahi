@@ -1,0 +1,35 @@
+==============================================================================
+MICROBENCHMARKS  (N=1000 iterations per op)
+==============================================================================
+h() raw hash            p50     1.50 us  p95     2.00 us  p99     2.40 us  max    24.30 us      604230 op/s
+add_event append        p50     2.90 us  p95     4.60 us  p99     9.40 us  max    31.20 us      310376 op/s
+verify() 500 ev         p50  3419.40 us  p95  4561.12 us  p99  5085.23 us  max  6932.10 us         280 op/s
+hint_flags 500 ev       p50   762.35 us  p95   924.06 us  p99  1236.66 us  max  2100.50 us        1266 op/s
+audit_report 500 ev     p50  4174.30 us  p95  5115.86 us  p99  5596.04 us  max  6800.10 us         233 op/s
+export_csv 500 ev       p50  3056.80 us  p95  3611.50 us  p99  4408.80 us  max  5900.70 us         318 op/s
+balances 500 ev         p50   179.70 us  p95   194.90 us  p99   221.93 us  max   997.00 us        5458 op/s
+verify_receipt          p50  3454.35 us  p95  4557.59 us  p99  5341.46 us  max  7319.90 us         279 op/s
+sign_entry (HMAC)       p50     6.80 us  p95     7.60 us  p99     9.50 us  max    18.30 us      143412 op/s
+sign_entry_ed25519      p50    65.20 us  p95    75.10 us  p99    99.20 us  max   634.30 us       14674 op/s
+verify_ed25519          p50   154.35 us  p95   226.60 us  p99   271.92 us  max  1289.60 us        6093 op/s
+microbenchmark samples: 11000 (across 11 operations)
+
+==============================================================================
+SCALING SWEEP  (per-event cost vs chain size; median of 3)
+==============================================================================
+events   verify                 hint_flags             audit_report           export_csv             balances              
+      10    2.240 us/ev            0.320 us/ev            2.790 us/ev            2.240 us/ev            0.270 us/ev        
+     100    2.104 us/ev            0.214 us/ev            2.354 us/ev            2.037 us/ev            0.247 us/ev        
+     500    2.129 us/ev            0.207 us/ev            2.559 us/ev            1.867 us/ev            0.238 us/ev        
+    1000    2.107 us/ev            0.199 us/ev            2.354 us/ev            1.909 us/ev            0.256 us/ev        
+    2500    2.239 us/ev            0.218 us/ev            2.519 us/ev            2.094 us/ev            0.261 us/ev        
+    5000    2.212 us/ev            0.211 us/ev            2.427 us/ev            2.085 us/ev            0.244 us/ev        
+   10000    2.195 us/ev            0.229 us/ev            2.506 us/ev            2.284 us/ev            0.179 us/ev        
+   25000    2.417 us/ev            0.223 us/ev            2.579 us/ev            2.096 us/ev            0.159 us/ev        
+   50000    2.423 us/ev            0.232 us/ev            2.518 us/ev            2.351 us/ev            0.168 us/ev        
+  100000    2.442 us/ev            0.250 us/ev            2.591 us/ev            2.204 us/ev            0.176 us/ev        
+  250000    2.363 us/ev            0.244 us/ev            2.605 us/ev            2.330 us/ev            0.150 us/ev        
+  500000    2.432 us/ev            0.273 us/ev            2.715 us/ev            2.279 us/ev            0.198 us/ev        
+scaling samples: 180 (across 12 sizes x 5 ops x 3 reps)
+
+TOTAL benchmark samples: 11180
