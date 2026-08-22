@@ -162,7 +162,20 @@ class BahiChain:
         return "__corrupt__" in self.roots or not isinstance(self.group_id, str) or self.group_id == ""
 
 
-def receipt_payload(group, meeting_id, root_meta, member):
+def receipt_payload(group, meeting_id, root_meta, member, chain=None):
+    """Build a member receipt. When `chain` is supplied, the receipt also
+    binds the member's own event hashes (member_events) so the receipt
+    proves the member's line items, not just the meeting root (PR4,
+    sujalsshukla). Without a chain the receipt carries member_events=None
+    and verification falls back to a member-exists check."""
+    member_events = None
+    if chain is not None:
+        member_events = [
+            {"seq": e["seq"], "hash": e["hash"]}
+            for e in chain.events
+            if e.get("member") == member and e.get("type") != "MEETING-CLOSE"
+            and e.get("seq", 0) <= root_meta.get("root_seq", 0)
+        ]
     return {
         "group": group,
         "meeting": meeting_id,
@@ -171,6 +184,7 @@ def receipt_payload(group, meeting_id, root_meta, member):
         "member": member,
         "root_ts": root_meta["ts"],
         "witnesses": root_meta["witnesses"],
+        "member_events": member_events,
     }
 
 
@@ -200,6 +214,22 @@ def verify_receipt(chain, receipt):
     last_ev = chain.events[-1]
     if last_ev.get("type") != "MEETING-CLOSE" or last_ev.get("seq") != receipt.get("root_seq"):
         return False, "events-after-close"
+    # member binding (PR4): a receipt with member_events proves the member's
+    # own line items; a legacy receipt at least requires the member to exist
+    member = receipt.get("member", "")
+    if not isinstance(member, str) or not member:
+        return False, "member-missing"
+    member_events = receipt.get("member_events")
+    if member_events:
+        chain_index = {(e.get("seq"), e.get("hash")) for e in chain.events}
+        seq_to_member = {e.get("seq"): e.get("member") for e in chain.events}
+        for me in member_events:
+            if seq_to_member.get(me.get("seq")) != member:
+                return False, "member-event-does-not-belong"
+            if (me.get("seq"), me.get("hash")) not in chain_index:
+                return False, "member-event-missing-or-tampered"
+    elif not any(e.get("member") == member for e in chain.events):
+        return False, "member-not-in-chain"
     sigs_now = root_meta.get("witnesses") or []
     sigs_then = receipt.get("witnesses") or []
     if len(sigs_then) < MIN_WITNESSES:

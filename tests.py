@@ -128,5 +128,27 @@ c.add_event(99, "contribution", "Ghost", 10000, "2026-08-02T10:00:00")
 ok, det = verify_receipt(c, r13)
 t("append after close -> events-after-close", not ok and "events-after-close" in det, det)
 
+# 14. member binding: a CONSISTENT rewrite (attacker re-links all hashes so
+# the chain still verifies) is caught only by the member receipt binding
+from chain import h
+c, root = make_chain()
+r14 = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
+c.events[0]["amount_paise"] = 5000   # Sita's first contribution edited
+prev = h("GENESIS", c.group_id)
+for ev in c.events:                  # attacker re-links the whole chain
+    ev["prev"] = prev
+    ev["hash"] = h(ev["prev"], ev["seq"], ev["type"], ev["member"], ev["amount_paise"], ev["ts"])
+    prev = ev["hash"]
+ok, det = verify_receipt(c, r14)
+t("consistent rewrite caught by member binding -> member-event-missing-or-tampered",
+  not ok and "member-event-missing-or-tampered" in det, det)
+
+# 15. member binding: receipt bound to a member with no events fails
+c, root = make_chain()
+r15 = receipt_payload("G-RAJ-042", "M07", root, "Nobody", chain=c)
+ok, det = verify_receipt(c, r15)
+t("member with no events -> member-no-events-or-missing",
+  not ok and ("member-" in det), det)
+
 print("\n%d/%d PASSED (%d failed)" % (PASS, PASS + FAIL, FAIL))
 sys.exit(0 if FAIL == 0 else 1)

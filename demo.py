@@ -26,7 +26,7 @@ def run():
     for w in ("Meera", "Laxmi"):
         root["witnesses"].append(sign({"root": root["root_hash"], "meeting": "M07"}, "pass-" + w, w))
 
-    receipt = receipt_payload("G-RAJ-042", "M07", root, "Sita")
+    receipt = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain)
     ok, detail = verify_receipt(chain, receipt)
     p("MEMBER RECEIPT (Sita): %s" % detail)
     p("receipt root: %s..." % receipt["root"][:16])

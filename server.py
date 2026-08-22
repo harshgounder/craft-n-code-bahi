@@ -51,7 +51,7 @@ def rebuild():
     chain, root = build_demo_chain()
     STATE["chain"] = chain
     STATE["root"] = root
-    STATE["receipt"] = receipt_payload("G-RAJ-042", "M07", root, "Sita")
+    STATE["receipt"] = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain)
     STATE["verdict"], STATE["last_detail"] = verify_receipt(chain, STATE["receipt"])
 
 
@@ -70,7 +70,17 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def do_HEAD(self):
+        # RFC 7231: HEAD = GET headers but NO body. do_GET writes no body
+        # when self.command is HEAD via _respond (PR5, sujalsshukla).
         self.do_GET()
+
+    def _respond(self, body_bytes, content_type):
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body_bytes)))
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(body_bytes)
 
     def do_GET(self):
         host = self.headers.get("Host", "")
@@ -119,7 +129,7 @@ class Handler(BaseHTTPRequestHandler):
             for w in WITNESSES:
                 root["witnesses"].append(sign({"root": root["root_hash"], "meeting": nxt}, "pass-" + w, w))
             STATE["root"] = root
-            STATE["receipt"] = receipt_payload("G-RAJ-042", nxt, root, "Sita")
+            STATE["receipt"] = receipt_payload("G-RAJ-042", nxt, root, "Sita", chain)
             STATE["verdict"], STATE["last_detail"] = verify_receipt(chain, STATE["receipt"])
             self.send_json({"ok": True, "meeting": nxt, "detail": STATE["last_detail"]})
         elif path == "/api/attack":
@@ -132,19 +142,10 @@ class Handler(BaseHTTPRequestHandler):
             rep = audit_report(STATE["chain"])
             self.send_json({"report": rep, "csv_rows": export_csv(STATE["chain"]), "hints": rep.get("hints", [])})
         else:
-            html = INDEX_HTML
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.end_headers()
-            self.wfile.write(html.encode("utf-8"))
+            self._respond(INDEX_HTML.encode("utf-8"), "text/html; charset=utf-8")
 
     def send_json(self, obj):
-        body = json.dumps(obj).encode("utf-8")
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        self._respond(json.dumps(obj).encode("utf-8"), "application/json")
 
 
 INDEX_HTML = """<!doctype html>
