@@ -51,7 +51,7 @@ def rebuild():
     chain, root = build_demo_chain()
     STATE["chain"] = chain
     STATE["root"] = root
-    STATE["receipt"] = receipt_payload("G-RAJ-042", "M07", root, "Sita")
+    STATE["receipt"] = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain)
     STATE["verdict"], STATE["last_detail"] = verify_receipt(chain, STATE["receipt"])
 
 
@@ -119,7 +119,7 @@ class Handler(BaseHTTPRequestHandler):
             for w in WITNESSES:
                 root["witnesses"].append(sign({"root": root["root_hash"], "meeting": nxt}, "pass-" + w, w))
             STATE["root"] = root
-            STATE["receipt"] = receipt_payload("G-RAJ-042", nxt, root, "Sita")
+            STATE["receipt"] = receipt_payload("G-RAJ-042", nxt, root, "Sita", chain)
             STATE["verdict"], STATE["last_detail"] = verify_receipt(chain, STATE["receipt"])
             self.send_json({"ok": True, "meeting": nxt, "detail": STATE["last_detail"]})
         elif path == "/api/attack":

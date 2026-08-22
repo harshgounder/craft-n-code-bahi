@@ -162,7 +162,20 @@ class BahiChain:
         return "__corrupt__" in self.roots or not isinstance(self.group_id, str) or self.group_id == ""
 
 
-def receipt_payload(group, meeting_id, root_meta, member):
+def receipt_payload(group, meeting_id, root_meta, member, chain=None):
+    """Build a member receipt. When `chain` is supplied, the receipt also
+    binds the member's own event hashes (member_events) so the receipt proves
+    the member's line items, not just the meeting root. Without a chain the
+    receipt carries member_events=None and verification falls back to a
+    member-exists check."""
+    member_events = None
+    if chain is not None:
+        member_events = [
+            {"seq": e["seq"], "hash": e["hash"]}
+            for e in chain.events
+            if e.get("member") == member and e.get("type") != "MEETING-CLOSE"
+            and e.get("seq", 0) <= root_meta.get("root_seq", 0)
+        ]
     return {
         "group": group,
         "meeting": meeting_id,
@@ -171,12 +184,14 @@ def receipt_payload(group, meeting_id, root_meta, member):
         "member": member,
         "root_ts": root_meta["ts"],
         "witnesses": root_meta["witnesses"],
+        "member_events": member_events,
     }
 
 
 def verify_receipt(chain, receipt):
-    """(1) recompute chain (2) bind group (3) bind meeting+root (4) quorum
-    (5) witness subset. Never crashes: corrupt input = fail with detail."""
+    """(1) recompute chain (2) bind group (3) bind meeting+root and locate the
+    actual MEETING-CLOSE event in the chain (4) bind member (5) quorum
+    (6) witness subset. Never crashes: corrupt input = fail with detail."""
     if chain.corrupt:
         return False, "corrupt-chain: %s" % (chain.roots.get("__corrupt__", {}).get("corrupt", "unknown"))
     chain_ok, bad_seq, why = chain.verify()
@@ -187,8 +202,40 @@ def verify_receipt(chain, receipt):
     root_meta = chain.root_for(receipt.get("meeting", ""))
     if root_meta is None:
         return False, "meeting-root-missing"
-    if root_meta["root_hash"] != receipt.get("root"):
+
+    # (3a) the meeting's MEETING-CLOSE event must exist IN THE CHAIN, not only
+    # as a stored roots[] string. Deleting the close event (while leaving
+    # roots[] metadata intact) must be detected.
+    close_ev = None
+    for ev in chain.events:
+        if ev.get("type") == "MEETING-CLOSE" and ev.get("seq") == receipt.get("root_seq"):
+            close_ev = ev
+            break
+    if close_ev is None:
+        return False, "meeting-close-missing"
+    if root_meta.get("root_hash") != close_ev.get("hash"):
+        # stored roots[] root_hash was tampered independently of the chain
         return False, "FORK-AT-MEETING-%s" % receipt.get("meeting")
+    if close_ev.get("hash") != receipt.get("root"):
+        return False, "FORK-AT-MEETING-%s" % receipt.get("meeting")
+
+    # (4) bind the member. With member_events the receipt is member-specific;
+    # a legacy receipt (no member_events) still requires the member to exist.
+    member = receipt.get("member", "")
+    if not isinstance(member, str) or not member:
+        return False, "member-missing"
+    member_events = receipt.get("member_events")
+    if member_events is not None:
+        seq_to = {e.get("seq"): e for e in chain.events}
+        for me in member_events:
+            ev = seq_to.get(me.get("seq"))
+            if ev is None or ev.get("member") != member or ev.get("hash") != me.get("hash"):
+                return False, "member-event-missing-or-tampered"
+    else:
+        if not any(e.get("member") == member for e in chain.events):
+            return False, "member-not-in-chain"
+
+    # (5) quorum + (6) witness subset
     sigs_now = root_meta.get("witnesses") or []
     sigs_then = receipt.get("witnesses") or []
     if len(sigs_then) < MIN_WITNESSES:
