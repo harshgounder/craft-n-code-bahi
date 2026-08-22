@@ -16,7 +16,7 @@ Run: python3 server.py  (then open http://localhost:8123)
 import json, urllib.parse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from chain import BahiChain, receipt_payload, verify_receipt, MIN_WITNESSES
-from witness import sign
+from witness import sign_entry, new_key
 from loans import balances
 from exporter import audit_report, export_csv
 
@@ -26,14 +26,20 @@ STATE = {"chain": None, "root": None, "receipt": None, "verdict": None, "last_de
 WITNESSES = ("Meera", "Laxmi")
 
 
+def _witness_entries(root_hash, meeting_id, names=WITNESSES):
+    """Generate a fresh random key per witness and sign the meeting root with
+    it. Each entry is {name, key, sig}. No hardcoded passphrases in source."""
+    payload = {"root": root_hash, "meeting": meeting_id}
+    return [sign_entry(payload, new_key(), w) for w in names]
+
+
 def build_demo_chain():
     chain = BahiChain("G-RAJ-042")
     t = "2026-08-02T10:00:00"
     # M06 (prior meeting): Kavita borrowed Rs 20,000. Root seq = 2.
     chain.add_event(1, "loan", "Kavita", 20000, t)
     r6 = chain.close_meeting("M06", t)
-    for w in WITNESSES:
-        r6["witnesses"].append(sign({"root": r6["root_hash"], "meeting": "M06"}, "pass-" + w, w))
+    r6["witnesses"] = _witness_entries(r6["root_hash"], "M06")
     # M07 (live meeting): seqs 3..8. Event seq 8 = Sita deposit = attack target.
     chain.add_event(3, "contribution", "Sita", 10000, t)
     chain.add_event(4, "contribution", "Geeta", 10000, t)
@@ -87,23 +93,50 @@ class Handler(BaseHTTPRequestHandler):
         if self.command != "HEAD":
             self.wfile.write(body_bytes)
 
-    def do_GET(self):
-        host = self.headers.get("Host", "")
-        origin = self.headers.get("Origin", "")
-        # localhost scope limit is NOT authentication (hardening report):
-        # reject foreign Host and any Origin so a remote page cannot forge
-        # state-changing requests against the demo UI (DNS rebinding, CSRF).
-        # Host suffix tricks (127.0.0.1.evil.com) are blocked by parsing the
-        # REGISTERED hostname (pentest PR6), not a naive prefix check.
-        hostname = host.split(":")[0].strip().lower()
-        if hostname not in ("127.0.0.1", "localhost", "::1"):
+    def _hostname(self, netloc):
+        # registered hostname from a netloc (strips port, lowercases, handles IPv6)
+        netloc = (netloc or "").strip().lower()
+        if netloc.startswith("["):
+            return netloc[1:netloc.find("]")] if "]" in netloc else netloc[1:]
+        return netloc.rsplit(":", 1)[0] if ":" in netloc else netloc
+
+    def _guard(self):
+        # exact hostname + origin allowlist (NOT substring): blocks suffix
+        # tricks like 127.0.0.1.evil.com
+        if self._hostname(self.headers.get("Host", "")) not in ("127.0.0.1", "localhost", "::1"):
             self.send_error(403, "foreign host rejected")
-            return
-        if origin and "127.0.0.1" not in origin and "localhost" not in origin:
+            return False
+        origin = self.headers.get("Origin", "")
+        if origin and self._hostname(urllib.parse.urlsplit(origin).netloc) not in ("127.0.0.1", "localhost", "::1"):
             self.send_error(403, "foreign origin rejected")
+            return False
+        return True
+
+    def _check_csrf(self):
+        # custom header: cross-origin pages can't send it (no CORS preflight
+        # is answered), so this blocks CSRF even without an Origin header
+        if self.headers.get("X-BAHI") != "1":
+            self.send_error(403, "missing X-BAHI header (CSRF guard)")
+            return False
+        return True
+
+    def do_POST(self):
+        # mutations arrive as POST; delegate to do_GET which enforces
+        # self.command == "POST" for the mutating paths
+        self.do_GET()
+
+    def do_GET(self):
+        if not self._guard():
             return
         path = self.path.split("?", 1)[0]
         qs = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+        # mutating endpoints require POST + the CSRF header
+        if path in ("/api/entry", "/api/close", "/api/attack", "/api/reset"):
+            if self.command != "POST":
+                self.send_error(405, "mutating endpoint requires POST")
+                return
+            if not self._check_csrf():
+                return
         if path == "/api/state":
             root = STATE["root"]
             self.send_json({
@@ -147,8 +180,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"ok": False, "detail": "meeting already closed"})
                 return
             root = chain.close_meeting("M07", "2026-08-02T10:00:00")
-            for w in WITNESSES:
-                root["witnesses"].append(sign({"root": root["root_hash"], "meeting": "M07"}, "pass-" + w, w))
+            root["witnesses"] = _witness_entries(root["root_hash"], "M07")
             STATE["root"] = root
             STATE["receipt"] = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain)
             STATE["verdict"], STATE["last_detail"] = verify_receipt(chain, STATE["receipt"])
@@ -236,7 +268,7 @@ INDEX_HTML = """<!doctype html>
 <script>
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function entry(type,paise){
- fetch('/api/entry?type='+type+'&paise='+paise).then(r=>r.json()).then(s=>{
+ fetch('/api/entry?type='+type+'&paise='+paise,{method:'POST',headers:{'X-BAHI':'1'}}).then(r=>r.json()).then(s=>{
   var names={contribution:'deposits',loan:'borrows',repayment:'repays'};
   var line='Sita '+esc(names[type]||type)+' Rs '+(paise/100)+' <span class="tick">&#9989; recorded in chain</span>';
   document.getElementById('entryline').innerHTML=line;
@@ -244,18 +276,18 @@ function entry(type,paise){
  });
 }
 function closeMeeting(){
- fetch('/api/close').then(r=>r.json()).then(s=>{
+ fetch('/api/close',{method:'POST',headers:{'X-BAHI':'1'}}).then(r=>r.json()).then(s=>{
   var bx=document.getElementById('receiptbox');
   bx.textContent='receipt | group G-RAJ-042 | meeting '+s.meeting+' | member Sita | witnesses 2 | closing balance verified | hash '+(''+s.root_hash).slice(0,16)+' | code '+(''+s.root_hash).slice(0,8);
   refresh();
  });
 }
-function attack(){fetch('/api/attack').then(r=>r.json()).then(show);}
+function attack(){fetch('/api/attack',{method:'POST',headers:{'X-BAHI':'1'}}).then(r=>r.json()).then(show);}
 function refresh(){fetch('/api/state').then(r=>r.json()).then(show);}
 function exportView(){
  fetch('/api/export').then(r=>r.json()).then(d=>{
   var hb=document.getElementById('hintsbox'),h='';
-  d.hints.forEach(x=>{h+='<div class="hint">&#9888;&#65039; '+x.hint+' @ '+x.meeting+': '+x.evidence+'</div>';});
+  d.hints.forEach(x=>{h+='<div class="hint">&#9888;&#65039; '+esc(x.hint)+' @ '+esc(x.meeting)+': '+esc(x.evidence)+'</div>';});
   hb.innerHTML=h||'<div class="hint note">no flags</div>';
   document.getElementById('csvbox').textContent=d.csv_rows;
  });

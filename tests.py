@@ -4,7 +4,7 @@ Pure stdlib. Covers: honest MATCH, 7 attack classes, determinism,
 quorum enforcement, group binding, corrupt-file handling."""
 import sys
 from chain import BahiChain, receipt_payload, verify_receipt, MIN_WITNESSES
-from witness import sign
+from witness import sign_entry, new_key
 
 PASS = 0
 FAIL = 0
@@ -29,14 +29,16 @@ def make_chain():
     c.add_event(6, "contribution", "Sita", 10000, t)
     c.add_event(7, "contribution", "Sita", 10000, t)
     root = c.close_meeting("M07", t)
-    for w in ("Meera", "Laxmi"):
-        root["witnesses"].append(sign({"root": root["root_hash"], "meeting": "M07"}, "pass-" + w, w))
+    payload = {"root": root["root_hash"], "meeting": "M07"}
+    root["witnesses"] = [sign_entry(payload, new_key(), w) for w in ("Meera", "Laxmi")]
     return c, root
 
 def receipt(c, root):
     return receipt_payload("G-RAJ-042", "M07", root, "Sita")
 
-t("honest chain -> MATCH", verify_receipt(*[make_chain()[0], receipt(*make_chain())])[0])
+c, root = make_chain()
+ok, det = verify_receipt(c, receipt(c, root))
+t("honest chain -> MATCH", ok and det == "MATCH", det)
 
 # 1. edit past amount
 c, root = make_chain()
@@ -173,6 +175,178 @@ okc, _, _ = c2.verify()
 ok, det = verify_receipt(c2, r16)
 t("close-swap+ghost (PR9 critical) -> FORK via close-hash recompute",
   okc and not ok and "close hash recompute" in det, det)
+
+# ---- security-hardening regression tests (v1.3) ----
+from chain import MAX_AMOUNT_PAISE
+from exporter import hint_flags, export_csv
+from loans import balances, format_rupees
+from witness import sign as _wsign, verify as _wverify
+
+# 17. quorum must count DISTINCT signatures (one sig duplicated twice must
+#     NOT satisfy the two-witness requirement)
+c, root = make_chain()
+root["witnesses"] = [root["witnesses"][0], dict(root["witnesses"][0])]
+ok, det = verify_receipt(c, receipt_payload("G-RAJ-042", "M07", root, "Sita"))
+t("duplicate witness sig -> quorum-fail (unique count)", not ok and "quorum-fail" in det, det)
+
+# 18. witness keys are randomly generated, distinct, and not from source
+t("witness keys are distinct random keys", new_key() != new_key())
+
+# 19. witness signature is cryptographically verified: swapping a key in the
+#     chain (keeping the sig) breaks verification
+c, root = make_chain()
+r = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
+for w in root["witnesses"]:
+    if w["name"] == "Meera":
+        w["key"] = new_key()          # substitute a different key
+ok, det = verify_receipt(c, r)
+t("witness key tampered -> witness-signature-invalid", not ok and "invalid" in det, det)
+
+# 20. h() delimiter ambiguity fixed (field containing the delimiter no longer collides)
+t("h() delimiter ambiguity fixed", h("A" + chr(31), "B") != h("A", chr(31) + "B"))
+
+# 21. h() type confusion fixed (int 1 vs str '1' vs bool True all distinct)
+t("h() type confusion fixed", h(1) != h("1") and h(1) != h(True))
+
+# 22. genesis anchored: floating first-event prev is detected even when re-hashed
+c, root = make_chain()
+c.events[0]["prev"] = h("GENESIS", "OTHER")
+c.events[0]["hash"] = h(c.events[0]["prev"], c.events[0]["seq"], c.events[0]["type"],
+                       c.events[0]["member"], c.events[0]["amount_paise"], c.events[0]["ts"])
+ok, bad_seq, why = c.verify()
+t("genesis anchored -> prev-hash-mismatch", not ok and "prev-hash-mismatch" in why, why)
+
+# 23. event group field bound: tampered group is a corruption verdict
+c, root = make_chain()
+c.events[0]["group"] = "G-EVIL"
+ok, bad_seq, why = c.verify()
+t("event group field mismatch -> corrupt-file", not ok and "group mismatch" in why, why)
+
+# 24. reserved meeting id rejected (was a corrupt-chain sentinel collision)
+c = BahiChain("G")
+c.add_event(1, "contribution", "Sita", 10000, "t")
+try:
+    c.close_meeting("__corrupt__", "t")
+    t("reserved meeting_id -> rejected", False, "no exception")
+except ValueError:
+    t("reserved meeting_id -> rejected", True)
+
+# 25. corruption tracked in a dedicated attribute (not a roots sentinel):
+#     loading a malformed file sets _corrupt without polluting roots
+import json as _json, tempfile as _tf, os as _os
+fp = _tf.mktemp(suffix=".json")
+with open(fp, "w") as f:
+    f.write("{not json")
+c = BahiChain.load(fp)
+t("corrupt load uses _corrupt attr (no sentinel in roots)",
+  c.corrupt and "__corrupt__" not in c.roots and c._corrupt is not None)
+_os.unlink(fp)
+
+# 26. event type must be a known enum (case/spelling spoof rejected)
+c = BahiChain("G")
+try:
+    c.add_event(1, "Loan", "Sita", 10000, "t")
+    t("invalid event type -> rejected", False, "no exception")
+except ValueError:
+    t("invalid event type -> rejected", True)
+
+# 27. whitespace-only member rejected
+c = BahiChain("G")
+try:
+    c.add_event(1, "contribution", "   ", 10000, "t")
+    t("whitespace-only member -> rejected", False, "no exception")
+except ValueError:
+    t("whitespace-only member -> rejected", True)
+
+# 28. control-char member rejected (delimiter/control byte in a name)
+c = BahiChain("G")
+try:
+    c.add_event(1, "contribution", "Sita" + chr(31), 10000, "t")
+    t("control-char member -> rejected", False, "no exception")
+except ValueError:
+    t("control-char member -> rejected", True)
+
+# 29. duplicate seq rejected
+c = BahiChain("G")
+c.add_event(1, "contribution", "Sita", 10000, "t")
+try:
+    c.add_event(1, "loan", "Asha", 50000, "t")
+    t("duplicate seq -> rejected", False, "no exception")
+except ValueError:
+    t("duplicate seq -> rejected", True)
+
+# 30. non-positive / non-integer seq rejected
+for bad_seq in (0, -1, "1", 1.5, True):
+    c = BahiChain("G")
+    try:
+        c.add_event(bad_seq, "contribution", "Sita", 10000, "t")
+        t("bad seq %r -> rejected" % bad_seq, False, "no exception")
+    except ValueError:
+        t("bad seq %r -> rejected" % bad_seq, True)
+
+# 31. amount above bound and bool amount rejected
+c = BahiChain("G")
+try:
+    c.add_event(1, "contribution", "Sita", MAX_AMOUNT_PAISE + 1, "t")
+    t("amount above bound -> rejected", False, "no exception")
+except ValueError:
+    t("amount above bound -> rejected", True)
+c = BahiChain("G")
+try:
+    c.add_event(1, "contribution", "Sita", True, "t")
+    t("bool amount -> rejected", False, "no exception")
+except ValueError:
+    t("bool amount -> rejected", True)
+
+# 32. NFC normalization: combining-accent form maps to the precomposed form
+c = BahiChain("G")
+c.add_event(1, "contribution", "Se\u0301ta", 10000, "t")   # e + combining acute
+t("NFC normalization maps combining to precomposed", c.events[0]["member"] == "S\u00e9ta", c.events[0]["member"])
+
+# 33. receipt witnesses are deep-copied, not aliased to live chain metadata
+c, root = make_chain()
+r = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
+before = len(r["witnesses"])
+root["witnesses"].append({"name": "Evil", "key": "0" * 64, "sig": "0" * 64})
+t("receipt witnesses deep-copied (not aliased)", before == 2 and len(r["witnesses"]) == 2, len(r["witnesses"]))
+
+# 34. balances() is safe on a malformed event (never crashes)
+c, root = make_chain()
+c.events[0]["member"] = None
+try:
+    b = balances(c)
+    t("balances safe on malformed event (no crash)", isinstance(b, dict))
+except Exception as e:
+    t("balances safe on malformed event (no crash)", False, "%s: %s" % (type(e).__name__, e))
+
+# 35. format_rupees is integer-exact (no float precision loss)
+t("format_rupees integer-exact", format_rupees(123456) == "Rs 1234.56", format_rupees(123456))
+
+# 36. CSV formula injection neutralized
+c = BahiChain("G")
+c.add_event(1, "contribution", "=1+1", 10000, "t")
+c.close_meeting("M1", "t")
+import csv as _csv, io as _io
+rows = list(_csv.reader(_io.StringIO(export_csv(c))))
+t("CSV formula injection neutralized", rows[1][2].startswith("'="), rows[1][2])
+
+# 37. hint_flags is safe on a malformed event (never crashes)
+c, root = make_chain()
+c.events[0].pop("member")
+try:
+    flags = hint_flags(c)
+    t("hint_flags safe on malformed event (no crash)", isinstance(flags, list))
+except Exception as e:
+    t("hint_flags safe on malformed event (no crash)", False, "%s: %s" % (type(e).__name__, e))
+
+# 38. cross-meeting repayment is NOT a false arithmetic_mismatch (whole-chain net)
+c = BahiChain("G")
+c.add_event(1, "loan", "Kavita", 20000, "t")
+c.close_meeting("M06", "t")
+c.add_event(3, "repayment", "Kavita", 20000, "t")
+c.close_meeting("M07", "t")
+t("cross-meeting repayment -> no arithmetic_mismatch FP",
+  not any(f["hint"] == "arithmetic_mismatch" for f in hint_flags(c)))
 
 print("\n%d/%d PASSED (%d failed)" % (PASS, PASS + FAIL, FAIL))
 sys.exit(0 if FAIL == 0 else 1)
