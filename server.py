@@ -155,8 +155,9 @@ INDEX_HTML = """<!doctype html>
  body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f2ea;color:#241f18;margin:0;padding:0 24px}
  h1{font-size:28px;margin:18px 0 4px}.sub{color:#6b6153;margin-bottom:18px}
  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
- .icon{font-size:40px;background:#fff;border:2px solid #d8d2c4;border-radius:16px;padding:12px 16px;cursor:pointer;user-select:none}
+ .icon{font-size:18px;background:#fff;border:2px solid #d8d2c4;border-radius:16px;padding:12px 16px;cursor:pointer;user-select:none}
  .icon:hover{border-color:#b45309}
+ .big{font-size:34px;vertical-align:middle;margin-right:6px}
  .entry{margin:14px 0;font-size:20px;min-height:26px}
  .tick{color:#15803d;font-weight:700}
  .btn{background:#1e3a2f;color:#fff;border:none;border-radius:10px;padding:12px 18px;font-size:17px;cursor:pointer;margin:6px 6px 0 0}
@@ -176,9 +177,9 @@ INDEX_HTML = """<!doctype html>
 
 <div class="card">
  <div class="row">
-  <div class="icon" onclick="entry('contribution',10000)" title="Deposit Rs 100">&#128176; Rs 100</div>
-  <div class="icon" onclick="entry('loan',50000)" title="Borrow Rs 500">&#128181; Rs 500</div>
-  <div class="icon" onclick="entry('repayment',10000)" title="Repay Rs 100">&#128200; Rs 100</div>
+  <div class="icon" onclick="entry('contribution',10000)" title="Deposit Rs 100"><span class="big">&#128176;</span> <b>Deposit</b> Rs 100</div>
+  <div class="icon" onclick="entry('loan',50000)" title="Borrow Rs 500"><span class="big">&#128181;</span> <b>Borrow</b> Rs 500</div>
+  <div class="icon" onclick="entry('repayment',10000)" title="Repay Rs 100"><span class="big">&#128200;</span> <b>Repay</b> Rs 100</div>
  </div>
  <div class="entry" id="entryline">&nbsp;</div>
  <button class="btn" onclick="closeMeeting()">Close meeting, 2 witnesses sign, issue receipt</button>
