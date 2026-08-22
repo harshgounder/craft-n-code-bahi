@@ -9,7 +9,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 os.chdir(HERE)
 
-MODULES = ["t_chain", "t_receipt", "t_witness", "t_loans", "t_exporter", "t_server", "fuzz", "bench"]
+MODULES = ["t_chain", "t_receipt", "t_witness", "t_loans", "t_exporter", "t_server", "t_v2", "t_stress", "fuzz", "bench"]
 
 
 def main():

@@ -47,8 +47,19 @@ chain.py   hash chain, receipts, verify_receipt (the core, pure stdlib)
 witness.py witness signing
 loans.py   deterministic balances, rupees formatting
 server.py  demo web UI on port 8123
-tests.py   9/9 attack tests (edit, delete, reorder, tamper, forgery, ghost)
+tests.py   16/16 attack tests (edit, delete, reorder, tamper, forgery, ghost, member binding)
 demo.py    terminal demo runner
+attack/    adversarial suite: 1,537 cases (109 flaw reproductions incl.
+           round-2 fixes-attacks, 97 defense checks, 1,241 seeded fuzz
+           properties incl. member-binding blind-spot fuzz, 16 stress
+           cases, 34 benchmarks, real-browser XSS proof)
+FINDINGS-v2.md round-2 audit: fix verification + NEW critical (close-swap
+           ghost-insert forgery, legacy-receipt recompute, seq collision)
+
+## Attack suite
+  python3 attack/run_all.py [fuzz-iters]  # full battery -> attack/results.json
+  python3 attack/xss_proof.py  # real headless-Chromium XSS proof (marker present = vulnerable)
+Run before trusting any release. Every finding lives in FINDINGS*.md with test IDs.
 
 ## Run it
   git clone <repo-url> && cd craft-n-code-bahi

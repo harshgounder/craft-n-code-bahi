@@ -95,8 +95,8 @@ def run():
         ("root", "f" * 64, "FORK"),
         ("root_seq", 999, "meeting-close-missing"),
         ("root_seq", 2, "FORK"),               # M06's close seq bound to M07 receipt -> root_seq collides with M06 close -> events-after-close
-        ("member", "Other Member", "MATCH"),   # member name NOT bound! expect MATCH (finding)
-        ("root_ts", "2020-01-01", "MATCH"),    # ts not bound (finding)
+        ("member", "Other Member", "member-fail"),  # PR4: member now BOUND (fixed)
+        ("root_ts", "2020-01-01", "MATCH"),    # ts not bound (still a gap)
         ("witnesses", [], "quorum-fail"),
     ]
     for field, val, expect in cases:
@@ -107,6 +107,9 @@ def run():
         if expect == "MATCH":
             t("VULN.recv.field.%s (receipt %s NOT bound)" % (field, field),
               ok and det == "MATCH", "%s=%r still MATCHes: receipt payload field is not verified" % (field, val))
+        elif expect == "member-fail":
+            t("SAFE.recv.field.%s (PR4 member binding FIXED)" % field,
+              not ok and ("member" in det or "FORK" in det), "%s=%r -> %s" % (field, val, det))
         elif expect == "FORK":
             t("SAFE.recv.field.%s -> FORK/events-after-close" % field,
               not ok and ("FORK" in det or "events-after-close" in det), det)
@@ -158,8 +161,8 @@ def run():
         try:
             ok, det = verify_receipt(c, r)
             if missing == "member":
-                t("VULN.recv.missing.%s still MATCHes (field never read)" % missing,
-                  ok and det == "MATCH", "receipt without %r verifies MATCH: member is present in receipts but NEVER checked" % missing)
+                t("SAFE.recv.missing.%s graceful fail (PR4 member binding FIXED)" % missing,
+                  not ok and "member" in det, "receipt without %r -> %s" % (missing, det))
             else:
                 t("SAFE.recv.missing.%s graceful fail" % missing, not ok and det != "", det)
         except Exception as e:

@@ -1,0 +1,17 @@
+========================================================================
+BAHI STRESS TESTS  (frozen snapshot)
+========================================================================
+  PASS  S1 1M-event chain build+verify+round-trip            1M events ok, round-trip deterministic
+  PASS  S2 unicode/emoji/RTL member names                    8 unicode names verified + exported
+  PASS  S3 amount extremes (0/1e18/2^63)                     amounts up to 2^63 verified; outstanding span 0..9223372036854775808
+  PASS  S4 negative amount rejected                          negative amount rejected (ValueError)
+  PASS  S5 float NaN/inf amounts                             {"nan": "rejected: ValueError", "inf": "rejected: OverflowError", "ninf": "rejected: OverflowError"}
+  PASS  S6 100k-char member name                             100k-char member verified ok
+  PASS  S7 10,000 meetings                                   10k meetings (20000 events) verified; 10000 roots
+  PASS  S8 10k-witness receipt                               10k witnesses on receipt -> MATCH
+  PASS  S9 pathological types (str seq, bool amount)         {"seq_str": "accepted", "amount_bool": "accepted as 1"}
+  PASS  S10 determinism (5 runs)                             5 runs -> identical export + identical verdict
+  PASS  S11 verify idempotency                               tampered chain verify idempotent: (4, event-hash-mismatch)
+  PASS  S12 hint_flags scale                                 50 meetings, 2000 events -> 100 flags in 0.008s
+
+12 passed, 0 failed

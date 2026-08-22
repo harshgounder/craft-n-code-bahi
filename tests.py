@@ -152,8 +152,8 @@ for ev in c.events:
     ev["hash"] = h(ev["prev"], c.group_id, ev["seq"], ev["type"], ev["member"], ev["amount_paise"], ev["ts"])
     prev = ev["hash"]
 ok, det = verify_receipt(c, r14)
-t("consistent rewrite caught by member binding -> member-event-missing-or-tampered",
-  not ok and "member-event-missing-or-tampered" in det, det)
+t("consistent rewrite caught (close-hash recompute fires first)",
+  not ok and ("member-event-missing-or-tampered" in det or "close hash recompute" in det), det)
 
 # 15. member binding: receipt bound to a member with no events fails
 c, root = make_chain()
@@ -242,6 +242,23 @@ r31 = receipt(c, root)
 before = len(r31["witnesses"])
 root["witnesses"].append({"witness": "EVIL", "sig": "0" * 64})
 t("receipt deep copy (A04)", len(r31["witnesses"]) == before, "aliased: %d -> %d" % (before, len(r31["witnesses"])))
+
+# 16. THE PR9 CRITICAL: close-content swap with VALID seqs. The attacker
+#     changes the close event's own content (re-hashes it) but leaves
+#     root_meta pointing at the ORIGINAL root. verify() stays self-consistent,
+#     Sita's member events are untouched, yet the recomputed close hash no
+#     longer equals the receipt root -> caught by the close-hash recompute tie.
+c, root = make_chain()
+r16 = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
+close_idx = len(c.events) - 1
+tamper_ts = "2026-01-01T00:00:00"
+c.events[close_idx]["ts"] = tamper_ts
+c.events[close_idx]["hash"] = h(c.events[close_idx]["prev"], c.group_id,
+                                c.events[close_idx]["seq"], "MEETING-CLOSE", "__root__", 0, tamper_ts)
+okc, _, _ = c.verify()   # self-consistent (seqs valid, hash re-linked)
+ok, det = verify_receipt(c, r16)
+t("close-content swap -> FORK via close-hash recompute",
+  okc and not ok and "close hash recompute" in det, det)
 
 print("\n%d/%d PASSED (%d failed)" % (PASS, PASS + FAIL, FAIL))
 sys.exit(0 if FAIL == 0 else 1)

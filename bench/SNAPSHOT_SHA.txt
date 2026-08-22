@@ -1,0 +1,5 @@
+d8e7511 (HEAD at freeze time) + in-progress working-tree changes.
+The frozen src/ reflects the working tree, which already contained the
+member-binding code (receipt member_events + MEETING-CLOSE root_seq lookup)
+later merged upstream as PR4. See SNAPSHOT_HASHES.txt for the exact file
+SHA-256 of each audited source file.
