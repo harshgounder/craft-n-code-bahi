@@ -4,7 +4,7 @@ meeting, witness signing, member receipt, ATTACK (tamper M07), fork detection.
 Deterministic: same input -> same output, always."""
 import json, sys
 from chain import BahiChain, receipt_payload, verify_receipt
-from witness import sign
+from witness import sign_entry
 
 def run(verbose=True):
     p = lambda s: print(s) if verbose else None
@@ -23,11 +23,12 @@ def run(verbose=True):
 
     root = chain.close_meeting("M07", ts_base)
     # two witnesses sign the ROOT VALUE (metadata, outside the hashed chain)
-    sig1 = sign({"root": root["root_hash"], "meeting": "M07"}, W1[1], W1[0])
-    sig2 = sign({"root": root["root_hash"], "meeting": "M07"}, W2[1], W2[0])
-    root["witnesses"] = [sig1, sig2]
+    root["witnesses"] = [
+        sign_entry({"root": root["root_hash"], "meeting": "M07"}, W1[1], W1[0]),
+        sign_entry({"root": root["root_hash"], "meeting": "M07"}, W2[1], W2[0]),
+    ]
 
-    receipt = receipt_payload("G-RAJ-042", "M07", root, "Sita")
+    receipt = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain)
     ok, detail = verify_receipt(chain, receipt)
     assert ok and detail == "MATCH"
     p("MEMBER RECEIPT (Sita): %s" % detail)

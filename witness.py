@@ -16,3 +16,9 @@ def sign(payload, passphrase, witness):
 
 def verify(payload, sig, passphrase, witness):
     return hmac.compare_digest(sign(payload, passphrase, witness), sig)
+
+
+def sign_entry(payload, passphrase, witness):
+    """Return a witness entry that carries the signer's NAME alongside the
+    signature, so an offline verifier with the witness's key can check it."""
+    return {"name": witness, "sig": sign(payload, passphrase, witness)}

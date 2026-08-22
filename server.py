@@ -13,7 +13,7 @@ Run: python3 server.py  (then open http://localhost:8123)
 import json, os, threading, webbrowser, time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from chain import BahiChain, receipt_payload, verify_receipt
-from witness import sign
+from witness import sign_entry
 from loans import balances, format_rupees
 from exporter import audit_report, export_csv
 
@@ -32,14 +32,14 @@ def build_demo_chain():
         chain.add_event(seq, etype, member, paise, "2026-08-02T10:00:00")
     root = chain.close_meeting("M07", "2026-08-02T10:00:00")
     for w in ("Meera", "Laxmi"):
-        root["witnesses"].append(sign({"root": root["root_hash"], "meeting": "M07"}, "pass-" + w, w))
+        root["witnesses"].append(sign_entry({"root": root["root_hash"], "meeting": "M07"}, "pass-" + w, w))
     return chain, root
 
 def rebuild():
     chain, root = build_demo_chain()
     STATE["chain"] = chain
     STATE["root"] = root
-    STATE["receipt"] = receipt_payload("G-RAJ-042", "M07", root, "Sita")
+    STATE["receipt"] = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain)
     STATE["verdict"], STATE["last_detail"] = verify_receipt(chain, STATE["receipt"])
 
 rebuild()   # fresh boot must be fully initialized before serving (G2)
