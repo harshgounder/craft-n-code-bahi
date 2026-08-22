@@ -18,12 +18,31 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from chain import BahiChain, receipt_payload, verify_receipt, MIN_WITNESSES
 from witness import sign_entry
 from loans import balances
-from exporter import audit_report, export_csv
+from exporter import audit_report, export_csv, html_escape, HINT_SEVERITY
 
 PORT = 8123
 STATE = {"chain": None, "root": None, "receipt": None, "verdict": None, "last_detail": ""}
 
 WITNESSES = ("Meera", "Laxmi")
+
+
+def hints_for_export(chain):
+    """Auditor hints as escaped, severity-tagged dicts.
+
+    Server-side escaping (html_escape) is the primary XSS defense for the hints
+    box; the client's esc() stays as a second layer. Severity comes from
+    exporter.HINT_SEVERITY so the new business-logic flags (corpus_insolvency,
+    repeat_borrower, orphan_correction) render with the right visual weight.
+    """
+    out = []
+    for h in audit_report(chain).get("hints", []):
+        out.append({
+            "hint": html_escape(h["hint"]),
+            "meeting": html_escape(h["meeting"]),
+            "evidence": html_escape(h["evidence"]),
+            "severity": HINT_SEVERITY.get(h["hint"], "note"),
+        })
+    return out
 
 
 def build_demo_chain():
@@ -157,7 +176,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"ok": True, "verdict": STATE["verdict"]})
         elif path == "/api/export":
             rep = audit_report(STATE["chain"])
-            self.send_json({"report": rep, "csv_rows": export_csv(STATE["chain"]), "hints": rep.get("hints", [])})
+            self.send_json({"report": rep, "csv_rows": export_csv(STATE["chain"]),
+                            "hints": hints_for_export(STATE["chain"])})
         else:
             self._respond(INDEX_HTML.encode("utf-8"), "text/html; charset=utf-8")
 
@@ -189,6 +209,12 @@ INDEX_HTML = """<!doctype html>
  th{background:#eee7d8}
  .hint{font-size:13px;color:#7c1d1d;margin:2px 0}
  .hint.note{color:#6b6153}
+ .sev-critical{color:#7f1d1d;font-weight:700;border-left:3px solid #7f1d1d;padding-left:6px}
+ .sev-warning{color:#92400e;border-left:3px solid #b45309;padding-left:6px}
+ .sev-note{color:#6b6153;border-left:3px solid #d8d2c4;padding-left:6px}
+ .legend{font-size:12px;color:#6b6153;margin:6px 0}
+ .legend b{font-weight:700}
+ .legend .cr{color:#7f1d1d}.legend .warn{color:#92400e}.legend .nt{color:#6b6153}
 </style></head><body>
 <h1>BAHI - the witnessed ledger</h1>
 <div class="sub">G-RAJ-042 &middot; Weekly meeting M07 &middot; offline &middot; pure hash math</div>
@@ -225,6 +251,7 @@ INDEX_HTML = """<!doctype html>
 
 <div class="card">
  <div><b>Auditor view</b> <button class="btn gray" id="exportbtn" onclick="exportView()">Refresh hints</button></div>
+ <div class="legend"><b class="cr">critical</b> &middot; <b class="warn">warning</b> &middot; <b class="nt">note</b> &middot; <span id="hintcount">0 flags</span></div>
  <div id="hintsbox" class="hint note">click Refresh hints</div>
  <pre class="mono" id="csvbox" style="max-height:160px;overflow:auto"></pre>
 </div>
@@ -251,8 +278,12 @@ function refresh(){fetch('/api/state').then(r=>r.json()).then(show);}
 function exportView(){
  fetch('/api/export').then(r=>r.json()).then(d=>{
   var hb=document.getElementById('hintsbox'),h='';
-  d.hints.forEach(x=>{h+='<div class="hint">&#9888;&#65039; '+esc(x.hint)+' @ '+esc(x.meeting)+': '+esc(x.evidence)+'</div>';});
+  // hint fields arrive pre-escaped + severity-tagged from the server
+  // (html_escape), so no client esc() here -- avoids double-escaping.
+  var sev={critical:'sev-critical',warning:'sev-warning',note:'sev-note'};
+  d.hints.forEach(x=>{h+='<div class="hint '+(sev[x.severity]||'sev-note')+'">&#9888;&#65039; '+x.hint+' @ '+x.meeting+': '+x.evidence+'</div>';});
   hb.innerHTML=h||'<div class="hint note">no flags</div>';
+  document.getElementById('hintcount').textContent=d.hints.length+' flags';
   document.getElementById('csvbox').textContent=d.csv_rows;
  });
 }

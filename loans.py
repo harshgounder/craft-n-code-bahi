@@ -24,19 +24,31 @@ from chain import BahiChain
 
 def balances(chain):
     """Replay every event, derive per-member loan balances.
-    Returns dict member -> {loaned, repaid, corrected, outstanding, over_repaid}."""
+    Returns dict member -> {loaned, repaid, corrected, outstanding, over_repaid}.
+
+    Crash-resistant: events missing `type`/`member` or a numeric `amount_paise`
+    (possible only in a hand-edited/corrupt chain) are skipped, never fed into
+    arithmetic — mirroring exporter.hint_flags's `invalid_event` treatment."""
     b = {}
     for ev in chain.events:
-        t = ev["type"]
+        if not isinstance(ev, dict):
+            continue
+        t = ev.get("type")
         if t not in ("loan", "repayment", "correction"):
             continue
-        m = b.setdefault(ev["member"], {"loaned": 0, "repaid": 0, "corrected": 0})
+        mname = ev.get("member")
+        amt = ev.get("amount_paise")
+        if not isinstance(mname, str) or not mname:
+            continue
+        if isinstance(amt, bool) or not isinstance(amt, (int, float)):
+            continue
+        m = b.setdefault(mname, {"loaned": 0, "repaid": 0, "corrected": 0})
         if t == "loan":
-            m["loaned"] += ev["amount_paise"]
+            m["loaned"] += amt
         elif t == "repayment":
-            m["repaid"] += ev["amount_paise"]
+            m["repaid"] += amt
         else:  # correction
-            m["corrected"] += ev["amount_paise"]
+            m["corrected"] += amt
     out = {}
     for member, m in b.items():
         raw = m["loaned"] - m["repaid"] - m["corrected"]
