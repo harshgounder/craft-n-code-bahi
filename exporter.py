@@ -19,6 +19,9 @@ HINT_RULES = [
     "duplicate_identity",
     "reversal_burst",
     "concentrated_lending",
+    "corpus_insolvency",
+    "repeat_borrower",
+    "orphan_correction",
 ]
 
 
@@ -101,9 +104,31 @@ def hint_flags(chain):
                           "evidence": "%d correction events" % len(corrections)})
         repaid = sum(e["amount_paise"] for e in evs if e["type"] == "repayment")
         loaned = sum(e["amount_paise"] for e in evs if e["type"] == "loan")
+        contributed = sum(e["amount_paise"] for e in evs if e["type"] == "contribution")
         if repaid > loaned:
             flags.append({"hint": "arithmetic_mismatch", "meeting": mid,
                           "evidence": "repayments Rs %d exceed loans Rs %d in meeting" % (repaid, loaned)})
+        # B2: corpus insolvency — more money lent than was ever contributed
+        if loaned > contributed:
+            flags.append({"hint": "corpus_insolvency", "meeting": mid,
+                          "evidence": "loans Rs %d exceed contributions Rs %d" % (loaned, contributed)})
+        # B1: repeat borrower — a member takes >=2 loans with no repayment
+        loan_counts = {}
+        for e in evs:
+            if e["type"] == "loan":
+                loan_counts[e["member"]] = loan_counts.get(e["member"], 0) + 1
+        repay_members = {e["member"] for e in evs if e["type"] == "repayment"}
+        for member, cnt in loan_counts.items():
+            if cnt >= 2 and member not in repay_members:
+                flags.append({"hint": "repeat_borrower", "meeting": mid,
+                              "evidence": "%s took %d loans with no repayment" % (member, cnt)})
+        # B3: orphan correction — a correction with no matching prior event
+        prior_amounts = {(e["member"], e["amount_paise"]) for e in evs
+                         if e["type"] in ("loan", "repayment", "contribution")}
+        for e in corrections:
+            if (e["member"], e["amount_paise"]) not in prior_amounts:
+                flags.append({"hint": "orphan_correction", "meeting": mid,
+                              "evidence": "%s corrected Rs %d with no matching prior entry" % (e["member"], e["amount_paise"])})
     return flags
 
 
@@ -128,7 +153,9 @@ def export_csv(chain):
 
     def safe(s):
         s = str(s)
-        return "'" + s if s[:1] in _DANGEROUS else s
+        if s[:1] in _DANGEROUS or s.lstrip()[:1] in _DANGEROUS:
+            return "'" + s
+        return s
     for e in chain.events:
         w.writerow([e["seq"], safe(e["type"]), safe(e["member"]),
                     e["amount_paise"], safe(e["ts"]), e["hash"]])

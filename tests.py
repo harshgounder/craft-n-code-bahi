@@ -43,7 +43,7 @@ def make_chain():
     return c, root
 
 def receipt(c, root):
-    return receipt_payload("G-RAJ-042", "M07", root, "Sita")
+    return receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
 
 t("honest chain -> MATCH", verify_receipt(*[make_chain()[0], receipt(*make_chain())])[0])
 
@@ -94,15 +94,15 @@ t("ghost meeting -> meeting-root-missing", not ok and "meeting-root-missing" in 
 # 8. determinism: two identical chains give identical verdicts
 c1, r1 = make_chain()
 c2, r2 = make_chain()
-v1 = verify_receipt(c1, receipt_payload("G-RAJ-042", "M07", r1, "Sita"))
-v2 = verify_receipt(c2, receipt_payload("G-RAJ-042", "M07", r2, "Sita"))
+v1 = verify_receipt(c1, receipt_payload("G-RAJ-042", "M07", r1, "Sita", chain=c1))
+v2 = verify_receipt(c2, receipt_payload("G-RAJ-042", "M07", r2, "Sita", chain=c2))
 t("determinism -> identical verdicts", v1 == v2 and v1[0] is True, (v1, v2))
 
 # 9. quorum: zero-witness close must FAIL
 c = BahiChain("G-RAJ-042")
 c.add_event(1, "contribution", "Sita", 10000, "t")
 root0 = c.close_meeting("M1", "t", witnesses=[])
-ok, det = verify_receipt(c, receipt_payload("G-RAJ-042", "M1", root0, "Sita"))
+ok, det = verify_receipt(c, receipt_payload("G-RAJ-042", "M1", root0, "Sita", chain=c))
 t("zero-witness close -> quorum-fail", not ok and "quorum-fail" in det, det)
 
 # 10. group binding: receipt for another group must FAIL
@@ -221,7 +221,7 @@ c = BahiChain("G")
 for i in range(1, 4): c.add_event(i, "contribution", "Sita", 10000, "t")
 root = c.close_meeting("M07", "t")
 root["witnesses"] = ["FAKE_SIG_AAAA", "FAKE_SIG_BBBB"]
-ok, det = verify_receipt(c, receipt_payload("G", "M07", root, "Sita"))
+ok, det = verify_receipt(c, receipt_payload("G", "M07", root, "Sita", chain=c))
 t("arbitrary witness strings -> quorum-fail", not ok and "quorum-fail" in det, det)
 
 # 29. witness crypto verification: correct keys -> MATCH (A02)
@@ -259,6 +259,44 @@ okc, _, _ = c.verify()   # self-consistent (seqs valid, hash re-linked)
 ok, det = verify_receipt(c, r16)
 t("close-content swap -> FORK via close-hash recompute",
   okc and not ok and "close hash recompute" in det, det)
+
+# 17. C1 quorum gaming: one witness signing twice must NOT satisfy quorum
+from witness import sign as _sign
+c = BahiChain("G")
+for i in range(1, 4): c.add_event(i, "contribution", "Sita", 10000, "t")
+root = c.close_meeting("M07", "t")
+root["witnesses"] = [{"witness": "Meera", "sig": _sign({"root": root["root_hash"], "meeting": "M07"}, "pass-Meera", "Meera")},
+                     {"witness": "Meera", "sig": _sign({"root": root["root_hash"], "meeting": "M07"}, "pass-Meera-2", "Meera")}]
+ok, det = verify_receipt(c, receipt_payload("G", "M07", root, "Sita", chain=c))
+t("quorum gaming (same witness twice) -> quorum-fail", not ok and "quorum-fail" in det, det)
+
+# 18. C1b: duplicate witness names rejected at close_meeting
+def _dup_close():
+    cc = BahiChain("G"); cc.add_event(1, "contribution", "Sita", 10000, "t")
+    cc.close_meeting("M07", "t", witnesses=[
+        {"witness": "Meera", "sig": "0"*64}, {"witness": "Meera", "sig": "1"*64}])
+raises("duplicate witness at close rejected", ValueError, _dup_close)
+
+# 19. R1: legacy receipt (no member_events) must be rejected
+c, root = make_chain()
+legacy = {"group": "G-RAJ-042", "meeting": "M07", "root": root["root_hash"],
+          "root_seq": root["root_seq"], "member": "Sita", "root_ts": "t",
+          "witnesses": [dict(w) for w in root["witnesses"]], "member_events": None}
+ok, det = verify_receipt(c, legacy)
+t("legacy receipt (no member_events) -> rejected", not ok and "member_events-missing" in det, det)
+
+# 20. B2 corpus insolvency + B1 repeat borrower + B3 orphan correction hints
+from exporter import hint_flags as _hf
+c = BahiChain("G")
+c.add_event(1, "contribution", "Sita", 10000, "t")
+c.add_event(2, "loan", "Asha", 100000, "t")   # insolvent (loan > corpus)
+c.add_event(3, "loan", "Asha", 50000, "t")    # repeat borrower, no repayment
+c.add_event(4, "correction", "Asha", 12345, "t")  # orphan (no matching prior amount)
+c.close_meeting("M01", "t")
+hints = {f["hint"] for f in _hf(c)}
+t("B2 corpus insolvency hint", "corpus_insolvency" in hints, hints)
+t("B1 repeat borrower hint", "repeat_borrower" in hints, hints)
+t("B3 orphan correction hint", "orphan_correction" in hints, hints)
 
 print("\n%d/%d PASSED (%d failed)" % (PASS, PASS + FAIL, FAIL))
 sys.exit(0 if FAIL == 0 else 1)

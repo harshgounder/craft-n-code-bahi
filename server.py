@@ -251,7 +251,7 @@ function refresh(){fetch('/api/state').then(r=>r.json()).then(show);}
 function exportView(){
  fetch('/api/export').then(r=>r.json()).then(d=>{
   var hb=document.getElementById('hintsbox'),h='';
-  d.hints.forEach(x=>{h+='<div class="hint">&#9888;&#65039; '+x.hint+' @ '+x.meeting+': '+x.evidence+'</div>';});
+  d.hints.forEach(x=>{h+='<div class="hint">&#9888;&#65039; '+esc(x.hint)+' @ '+esc(x.meeting)+': '+esc(x.evidence)+'</div>';});
   hb.innerHTML=h||'<div class="hint note">no flags</div>';
   document.getElementById('csvbox').textContent=d.csv_rows;
  });

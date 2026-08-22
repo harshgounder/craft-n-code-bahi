@@ -161,6 +161,8 @@ class BahiChain:
             n = _norm_witness(w)
             if n is None:
                 raise ValueError("invalid witness record: %r" % (w,))
+            if any(s["witness"] == n[0] for s in sigs):
+                raise ValueError("duplicate witness: %r" % (n[0],))
             sigs.append({"witness": n[0], "sig": n[1]})
         self.roots[meeting_id] = {
             "root_hash": ev["hash"],
@@ -176,6 +178,8 @@ class BahiChain:
         root_meta = self.roots.get(meeting_id)
         if root_meta is None:
             raise ValueError("meeting %r not found" % (meeting_id,))
+        if any(w.get("witness") == witness for w in root_meta.get("witnesses", [])):
+            raise ValueError("witness %r already signed meeting %r" % (witness, meeting_id))
         rec = {"witness": witness, "sig": _witness_sign(payload, passphrase, witness)}
         root_meta["witnesses"].append(rec)
         return rec
@@ -338,26 +342,33 @@ def verify_receipt(chain, receipt, witness_keys=None):
     member = receipt.get("member", "")
     if not isinstance(member, str) or not member:
         return False, "member-missing"
+    # member binding (R1 hardened): a receipt must carry member_events proving
+    # the member's own line items. A legacy receipt without member_events proves
+    # only "member exists", which is not a receipt. Reject it.
     member_events = receipt.get("member_events")
-    if member_events:
-        chain_index = {(e.get("seq"), e.get("hash")) for e in chain.events}
-        seq_to_member = {e.get("seq"): e.get("member") for e in chain.events}
-        for me in member_events:
-            if seq_to_member.get(me.get("seq")) != member:
-                return False, "member-event-does-not-belong"
-            if (me.get("seq"), me.get("hash")) not in chain_index:
-                return False, "member-event-missing-or-tampered"
-    elif not any(e.get("member") == member for e in chain.events):
-        return False, "member-not-in-chain"
+    if member_events is None:
+        return False, "member_events-missing (legacy receipt unsupported)"
+    if not member_events:
+        return False, "member-no-events"
+    chain_index = {(e.get("seq"), e.get("hash")) for e in chain.events}
+    seq_to_member = {e.get("seq"): e.get("member") for e in chain.events}
+    for me in member_events:
+        if seq_to_member.get(me.get("seq")) != member:
+            return False, "member-event-does-not-belong"
+        if (me.get("seq"), me.get("hash")) not in chain_index:
+            return False, "member-event-missing-or-tampered"
 
     # witnesses: normalize to (name, sig) pairs; malformed entries are dropped,
-    # so arbitrary strings can never count toward quorum (A02)
+    # so arbitrary strings can never count toward quorum (A02). Quorum counts
+    # DISTINCT witness names, so one person signing twice cannot self-attest (C1).
     sigs_now = _norm_witnesses(root_meta.get("witnesses"))
     sigs_then = _norm_witnesses(receipt.get("witnesses"))
-    if len(sigs_then) < MIN_WITNESSES:
-        return False, "quorum-fail: %d valid witness record(s)" % len(sigs_then)
-    if len(sigs_now) < MIN_WITNESSES:
-        return False, "quorum-fail: chain has %d valid witness record(s)" % len(sigs_now)
+    now_names = {n for n, _ in sigs_now}
+    then_names = {n for n, _ in sigs_then}
+    if len(then_names) < MIN_WITNESSES:
+        return False, "quorum-fail: %d distinct witness(es)" % len(then_names)
+    if len(now_names) < MIN_WITNESSES:
+        return False, "quorum-fail: chain has %d distinct witness(es)" % len(now_names)
     if not set(sigs_then).issubset(set(sigs_now)):
         return False, "witness-signature-differs"
 
