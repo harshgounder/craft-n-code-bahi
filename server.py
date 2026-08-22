@@ -41,23 +41,28 @@ def build_demo_chain():
     chain.add_event(6, "repayment", "Kavita", 10000, t)   # partial repayment
     chain.add_event(7, "loan", "Asha", 50000, t)
     chain.add_event(8, "contribution", "Sita", 10000, t)  # attack target
-    r7 = chain.close_meeting("M07", t)
-    for w in WITNESSES:
-        r7["witnesses"].append(sign({"root": r7["root_hash"], "meeting": "M07"}, "pass-" + w, w))
-    return chain, r7
+    # M07 stays OPEN: the UI Close button closes it and issues the receipt.
+    # Starting closed broke live entry under the terminality check.
+    return chain, None
 
 
 def rebuild():
-    chain, root = build_demo_chain()
+    chain, _ = build_demo_chain()
     STATE["chain"] = chain
-    STATE["root"] = root
-    STATE["receipt"] = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain)
-    STATE["verdict"], STATE["last_detail"] = verify_receipt(chain, STATE["receipt"])
+    STATE["root"] = None            # no receipt until the meeting closes
+    STATE["receipt"] = None
+    STATE["verdict"] = None
+    STATE["last_detail"] = "MEETING OPEN: entries accepted until Close"
 
 
 def apply_attack():
-    """Secretary edits the M07 Sita deposit (event seq 8, index 7): Rs 100 -> Rs 10."""
+    """Secretary edits the M07 Sita deposit (event seq 8, index 7): Rs 100 -> Rs 10.
+    Only meaningful after the meeting closed (receipt exists)."""
     chain = STATE["chain"]
+    if STATE["receipt"] is None:
+        STATE["verdict"] = None
+        STATE["last_detail"] = "meeting-open: close the meeting first"
+        return
     chain.events[7]["amount_paise"] = 1000
     STATE["verdict"], STATE["last_detail"] = verify_receipt(chain, STATE["receipt"])
 
@@ -100,13 +105,17 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         qs = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
         if path == "/api/state":
+            root = STATE["root"]
             self.send_json({
                 "verdict": STATE["verdict"], "detail": STATE["last_detail"],
                 "receipt": STATE["receipt"], "events": STATE["chain"].events,
                 "balances": balances(STATE["chain"]),
-                "root_hash": STATE["root"]["root_hash"],
-                "witnesses": STATE["root"]["witnesses"]})
+                "root_hash": root["root_hash"] if root else None,
+                "witnesses": root["witnesses"] if root else []})
         elif path == "/api/entry":
+            if STATE["receipt"] is not None:
+                self.send_json({"ok": False, "detail": "meeting-closed: no more entries"})
+                return
             etype = qs.get("type", ["contribution"])[0]
             if etype not in ("contribution", "loan", "repayment", "correction"):
                 etype = "contribution"   # whitelist: blocks stored XSS via type (PR6)
@@ -124,19 +133,23 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError as e:
                 self.send_json({"ok": False, "detail": str(e)})
                 return
-            STATE["verdict"], STATE["last_detail"] = verify_receipt(chain, STATE["receipt"])
-            self.send_json({"ok": True, "detail": STATE["last_detail"]})
+            chain_ok, bad_seq, why = chain.verify()
+            STATE["verdict"] = None
+            STATE["last_detail"] = "entry recorded (meeting open, %d events)" % len(chain.events)
+            self.send_json({"ok": True, "detail": STATE["last_detail"], "event": chain.events[-1]})
         elif path == "/api/close":
-            # close + 2 witnesses sign + fresh receipt for Sita
+            # close the OPEN M07 + 2 witnesses sign + fresh receipt for Sita
             chain = STATE["chain"]
-            nxt = "M08"
-            root = chain.close_meeting(nxt, "2026-08-02T10:00:00")
+            if STATE["receipt"] is not None:
+                self.send_json({"ok": False, "detail": "meeting already closed"})
+                return
+            root = chain.close_meeting("M07", "2026-08-02T10:00:00")
             for w in WITNESSES:
-                root["witnesses"].append(sign({"root": root["root_hash"], "meeting": nxt}, "pass-" + w, w))
+                root["witnesses"].append(sign({"root": root["root_hash"], "meeting": "M07"}, "pass-" + w, w))
             STATE["root"] = root
-            STATE["receipt"] = receipt_payload("G-RAJ-042", nxt, root, "Sita", chain)
+            STATE["receipt"] = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain)
             STATE["verdict"], STATE["last_detail"] = verify_receipt(chain, STATE["receipt"])
-            self.send_json({"ok": True, "meeting": nxt, "detail": STATE["last_detail"]})
+            self.send_json({"ok": True, "meeting": "M07", "root_hash": root["root_hash"], "detail": STATE["last_detail"]})
         elif path == "/api/attack":
             apply_attack()
             self.send_json({"verdict": STATE["verdict"], "detail": STATE["last_detail"]})
@@ -246,7 +259,8 @@ function exportView(){
 }
 function show(s){
  var v=document.getElementById('verdict');
- if(s.verdict){v.className='verdict ok';v.textContent='VERDICT: MATCH - receipt and books agree (green = Verified)';}
+ if(s.verdict===null){v.className='verdict pending';v.textContent='STATUS: '+s.detail+' (amber = Pending)';}
+ else if(s.verdict){v.className='verdict ok';v.textContent='VERDICT: MATCH - receipt and books agree (green = Verified)';}
  else{v.className='verdict bad';v.textContent='VERDICT: '+s.detail+' - receipt FAILS (red = Mismatch)';}
  var tbl=document.getElementById('loanstable'),h='<tr><th>Member</th><th>Loaned</th><th>Repaid</th><th>Outstanding</th></tr>';
  Object.values(s.balances).forEach(b=>{h+='<tr><td>'+esc(b.member)+'</td><td>Rs '+esc(b.loaned_paise/100)+'</td><td>Rs '+esc(b.repaid_paise/100)+'</td><td><b>Rs '+esc(b.outstanding_paise/100)+'</b></td></tr>';});
