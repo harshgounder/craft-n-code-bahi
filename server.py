@@ -113,6 +113,34 @@ class Handler(BaseHTTPRequestHandler):
         if self.command != "HEAD":
             self.wfile.write(body_bytes)
 
+    @staticmethod
+    def _split_hostname(netloc):
+        """Bracket-aware host/port split. Returns the hostname (lowercased)
+        when the netloc is well-formed and the port (if present) is purely
+        numeric, else None. Rejects '127.0.0.1:8123.evil.com' and every other
+        suffix/embedding trick."""
+        try:
+            if netloc.startswith("["):
+                end = netloc.find("]")
+                if end < 0:
+                    return None
+                host = netloc[1:end]
+                rest = netloc[end + 1:]
+                if rest.startswith(":"):
+                    if not rest[1:].isdigit():
+                        return None
+                elif rest:
+                    return None
+                return host
+            if ":" in netloc:
+                host, _, port = netloc.rpartition(":")
+                if not port.isdigit() or ":" in host:
+                    return None
+                return host
+            return netloc
+        except Exception:
+            return None
+
     def do_GET(self):
         host = self.headers.get("Host", "")
         origin = self.headers.get("Origin", "")
@@ -120,18 +148,16 @@ class Handler(BaseHTTPRequestHandler):
         # reject foreign Host and any Origin so a remote page cannot forge
         # state-changing requests against the demo UI (DNS rebinding, CSRF).
         # Host suffix tricks (127.0.0.1.evil.com, 127.0.0.1:8123.attacker.com)
-        # are blocked by an EXACT netloc compare, not a prefix/split check:
-        # urlsplit would trim on the first colon, so "127.0.0.1:8123.evil.com"
-        # must not reduce to a valid host. Every permitted spelling is
-        # listed explicitly, including the IPv6-bracket forms (PR6).
+        # are blocked by an EXACT hostname parse. urlsplit would trim on the
+        # first colon, so "127.0.0.1:8123.evil.com" must not reduce to a valid
+        # host: we split the bracket-aware host, require the port (if any) to
+        # be purely numeric, and require the host itself to be loopback.
         netloc = (host or "").strip().lower()
-        if netloc in ("",):
+        if not netloc:
             self.send_error(403, "missing host rejected")
             return
-        permitted = ("127.0.0.1", "localhost", "[::1]",
-                     "127.0.0.1:8123", "localhost:8123", "[::1]:8123",
-                     "127.0.0.1:80", "localhost:80")
-        if netloc not in permitted:
+        hostname = self._split_hostname(netloc)
+        if hostname is None or hostname not in ("127.0.0.1", "localhost", "::1"):
             self.send_error(403, "foreign host rejected")
             return
         # Exact-origin compare (not substring): a page at

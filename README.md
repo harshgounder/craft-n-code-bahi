@@ -15,17 +15,19 @@ Offline member-witnessed SHG ledger. Every entry goes into a SHA-256 chain, ever
 
 ## Quick start
 No dependencies. Python 3 stdlib only.
-  python3 tests.py      # 9/9 tests, exit 0 = all green
+  python3 tests.py      # 50/50 tests, exit 0 = all green
   python3 server.py     # demo UI on http://localhost:8123 (opens browser)
   python3 demo.py       # 90-second demo runner in the terminal
+  python3 attack/run_all.py   # 1,542-case adversarial battery, 0 SAFE broken
 
 ## 90-second demo script
-1. "Sita deposits Rs 100" via 4 icon buttons, voice repeat line + green tick (10s).
-2. Close meeting M07, 2 witnesses sign, member receipt prints (10s).
-3. ATTACK: secretary edits Rs 100 to Rs 10 on event 7 (5s).
-4. Member receipt vs chain: FORK AT EVENT 7, red screen (5s).
-5. Auditor view: fork report, chain table, loan tracker (15s).
-6. Honest redo: MATCH, green screen (15s).
+1. Meeting M07 starts OPEN: amber PENDING, entries accepted (5s).
+2. "Sita deposits Rs 100" via 4 icon+word buttons, voice repeat line + green tick (10s).
+3. Close meeting M07, 2 witness records sign, member receipt prints (10s).
+4. ATTACK: secretary edits Rs 100 to Rs 10 on event 8 (Sita's deposit) (5s).
+5. Member receipt vs chain: FORK AT EVENT 8, red screen (5s).
+6. Auditor view: fork report, chain table, loan tracker, CSV export (15s).
+7. Honest redo: MATCH, green screen (15s).
 Zero network. Deterministic: same input, same verdict, every run.
 
 ## Honest boundaries
@@ -44,17 +46,17 @@ Zero network. Deterministic: same input, same verdict, every run.
 
 ## Repo layout
 chain.py   hash chain, receipts, verify_receipt (the core, pure stdlib)
-witness.py witness signing
-loans.py   deterministic balances, rupees formatting
-server.py  demo web UI on port 8123
-tests.py   16/16 attack tests (edit, delete, reorder, tamper, forgery, ghost, member binding)
+witness.py witness name-bound records (HMAC), cryptographic check with keys
+loans.py   deterministic balances, rupees formatting, over-repayment surfaced
+server.py  demo web UI on port 8123 (Ledger & Parchment redesign)
+tests.py   50/50 attack tests (edit, delete, reorder, tamper, forgery, ghost,
+           member binding, close-hash tie, quorum, corrupt-file, open flow)
 demo.py    terminal demo runner
-attack/    adversarial suite: 1,537 cases (109 flaw reproductions incl.
-           round-2 fixes-attacks, 97 defense checks, 1,241 seeded fuzz
-           properties incl. member-binding blind-spot fuzz, 16 stress
-           cases, 34 benchmarks, real-browser XSS proof)
+attack/    adversarial suite: 1,542 cases (t_chain 100, t_receipt 37,
+           t_witness 20, t_loans 27, t_exporter 32, t_server 46, t_v2 23,
+           fuzz 1,241, stress 16, benchmarks 34) - 0 SAFE broken
 FINDINGS-v2.md round-2 audit: fix verification + NEW critical (close-swap
-           ghost-insert forgery, legacy-receipt recompute, seq collision)
+           ghost-insert forgery) - fixed by the close-hash tie
 
 ## Attack suite
   python3 attack/run_all.py [fuzz-iters]  # full battery -> attack/results.json
