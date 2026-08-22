@@ -1,0 +1,93 @@
+==============================================================================
+BAHI ADVERSARIAL AUDIT - frozen snapshot (SHA d8e7511 )
+==============================================================================
+
+--- FIXED since v1.2 (defenses now hold) ---
+[RESISTED ] FIXED      CRITICAL Hash domain-separation collision (member absorbs amount)
+        h() appends a unit-separator (\x1f) after every field, so member 'Asha' + amount 50000 no longer collides with member 'Asha5000' + amount 0.
+        fix: Already fixed. (Residual: a member name literally containing \x1f is not sanitized, but no collision was constructible.)
+[RESISTED ] FIXED      CRITICAL Cross-group receipt confusion (group field ignored)
+        verify_receipt checks receipt['group'] == chain.group_id.
+        fix: Already fixed at the receipt layer (see N1 for the un-hashed group caveat).
+[RESISTED ] FIXED      HIGH     CSV injection (no RFC-4180 escaping)
+        export_csv uses stdlib csv.writer (quoting).
+        fix: Already fixed.
+[RESISTED ] FIXED      HIGH     hint_flags misattributes across meetings
+        hint_flags buckets events per meeting by root_seq ranges.
+        fix: Already fixed for correctness (perf still O(meetings*events); see benchmarks).
+[RESISTED ] FIXED      MEDIUM   duplicate_identity undercounts (==2, not >=2)
+        Fires on >=3 repeats (2 identical contributions is a normal SHG pattern).
+        fix: Already fixed (advisory threshold raised).
+[RESISTED ] FIXED      MEDIUM   verify_receipt ignores root_seq and member fields
+        verify_receipt now locates the MEETING-CLOSE event by root_seq and binds the member (via member_events or a member-exists check).
+        fix: Already fixed.
+[RESISTED ] FIXED      MEDIUM   load() has no structural validation
+        load() returns a structured 'corrupt chain' object instead of raising.
+        fix: Already fixed.
+[RESISTED ] FIXED      LOW      save() canonicalization (defense held)
+        Verified: output is deterministic (dict insertion order is fixed).
+        fix: No fix required.
+
+--- STILL OPEN ---
+[EXPLOITED] STILL-OPEN CRITICAL Witness signatures still not cryptographically verified
+        verify_receipt compares witness signatures as a SET of opaque strings (issubset) and never calls witness.verify. Two arbitrary strings satisfy quorum and verify MATCH.
+        fix: Actually verify each signature: wverify({'root':..,'meeting':..}, sig, passphrase, witness).
+[EXPLOITED] STILL-OPEN HIGH     Receipt aliases live chain state (mutable after issue)
+        receipt_payload returns root_meta['witnesses'] by REFERENCE. The bookkeeper can append/remove witness signatures AFTER handing out the receipt.
+        fix: Deep-copy: 'witnesses': list(root_meta['witnesses']).
+[EXPLOITED] STILL-OPEN HIGH     close_meeting silently overwrites an existing meeting root
+        Re-closing the same meeting id replaces roots[id] and loses the old root.
+        fix: Refuse to overwrite: if meeting_id in self.roots: raise ValueError.
+[EXPLOITED] STILL-OPEN MEDIUM   Float amounts silently truncated to int
+        _norm_amount does int(v); 10000.9 becomes 10000 with no warning.
+        fix: Reject non-integral amounts: if float(amount) != int(amount): raise.
+[EXPLOITED] STILL-OPEN MEDIUM   Over-repayment -> negative outstanding balance
+        Negative AMOUNTS are now rejected (fixed), but over-repayment still drives outstanding balances negative; no accounting invariant enforced.
+        fix: Validate repayment <= outstanding in balances().
+[EXPLOITED] STILL-OPEN MEDIUM   Duplicate / out-of-order / non-integer seq accepted
+        add_event does not validate seq. Duplicate/gapped/string seqs are stored and verify() still passes. Secondary effects: non-monotonic seq corrupts hint_flags meeting bucketing, and a string seq crashes hint_flags (N2).
+        fix: Enforce seq == len(self.events)+1 or a monotonic counter; type-check int.
+[EXPLOITED] STILL-OPEN MEDIUM   MEETING-CLOSE type injectable as a normal event
+        add_event does not restrict the event type set; a forged close marker can be added outside close_meeting.
+        fix: Restrict the type set; make close_meeting the only emitter of MEETING-CLOSE.
+[EXPLOITED] STILL-OPEN MEDIUM   Arbitrary prev_hash accepted silently by add_event
+        add_event accepts a caller-supplied prev_hash; a wrong prev breaks the chain but only surfaces at the next verify().
+        fix: Derive prev internally; drop the prev_hash parameter or validate it.
+[EXPLOITED] STILL-OPEN LOW      Member name '__root__' collides with close marker
+        MEETING-CLOSE uses member='__root__'; a real member with that name is indistinguishable from a close marker.
+        fix: Reserve '__root__' (reject it in add_event).
+[EXPLOITED] STILL-OPEN LOW      Timestamps not ordered or validated
+        ts is a free string; events can be added with backwards timestamps.
+        fix: Parse/validate ts and enforce monotonic order per meeting.
+[EXPLOITED] STILL-OPEN LOW      No nonce -> identical consecutive events accepted
+        Two identical events in a row are accepted; no position/nonce binding beyond the (unvalidated) seq.
+        fix: Enforce unique seq and bind it into the hash (seq already in hash).
+[EXPLOITED] STILL-OPEN LOW      Weak typing: str seq / bool amount accepted
+        seq stored uncast (strings work) and bool amounts coerce to int (True -> 1).
+        fix: Type-check seq(int), member(str), amount(int not bool), ts(str).
+
+--- NEW (found in current code) ---
+[EXPLOITED] NEW        MEDIUM   group_id is not bound into the event hash
+        group_id is stored as an event field but NOT hashed (h() hashes prev/seq/type/member/amount/ts only). Renaming the group keeps every hash valid, so group identity is not cryptographically committed to the chain.
+        fix: Include group_id in the event hash (and/or the genesis anchor).
+[EXPLOITED] NEW        MEDIUM   hint_flags/audit_report crash on a string seq (TypeError)
+        _meetings_with_events compares lo <= e['seq'] <= hi; a string seq (possible via A21) raises TypeError, violating the 'never crash on bad data' claim and taking down the /api/export audit path.
+        fix: Coerce/validate seq to int before bucketing; guard the comparison.
+[EXPLOITED] NEW        LOW      verify() vs corrupt property inconsistency (empty group_id)
+        verify() returns 'ok' for a chain built with group_id='', but the `corrupt` property (and verify_receipt) treat it as corrupt. Two code paths disagree.
+        fix: Make verify() reject empty/whitespace group_id the same way `corrupt` does.
+[EXPLOITED] NEW        MEDIUM   correction events still have no defined effect
+        The 'correction' event type is accepted but ignored by balances() and every audit rule, so a correction cannot reverse or adjust anything.
+        fix: Define correction semantics (explicit reversal target) and apply in balances().
+[EXPLOITED] NEW        LOW      close_meeting does not enforce quorum at close time
+        A meeting can be closed with zero witnesses (no error); quorum is only checked later during verification. The close-time invariant is advisory.
+        fix: Require witnesses (>= MIN_WITNESSES) at close_meeting time, or return an explicit unsigned status.
+
+==============================================================================
+SUMMARY
+  FIXED       8 total (0 exploited / 8 resisted)
+  STILL-OPEN  12 total (12 exploited / 0 resisted)
+  NEW         5 total (5 exploited / 0 resisted)
+  ACTION      17 open+new findings, 17 actively exploitable
+
+Bottom line: the core tamper->recompute FORK detection is sound and all 12 upstream tests pass. The remaining risk clusters in three places: (1) witness signatures are structural, not cryptographic (A02); (2) input validation gaps let malformed events through (A08-A12, A21, N2); (3) receipt fields are not fully bound (A04, A14->fixed, N1).
