@@ -87,8 +87,11 @@ class Handler(BaseHTTPRequestHandler):
         origin = self.headers.get("Origin", "")
         # localhost scope limit is NOT authentication (hardening report):
         # reject foreign Host and any Origin so a remote page cannot forge
-        # state-changing requests against the demo UI (DNS rebinding, CSRF)
-        if not host.startswith("127.0.0.1") and not host.startswith("localhost"):
+        # state-changing requests against the demo UI (DNS rebinding, CSRF).
+        # Host suffix tricks (127.0.0.1.evil.com) are blocked by parsing the
+        # REGISTERED hostname (pentest PR6), not a naive prefix check.
+        hostname = host.split(":")[0].strip().lower()
+        if hostname not in ("127.0.0.1", "localhost", "::1"):
             self.send_error(403, "foreign host rejected")
             return
         if origin and "127.0.0.1" not in origin and "localhost" not in origin:
@@ -105,6 +108,8 @@ class Handler(BaseHTTPRequestHandler):
                 "witnesses": STATE["root"]["witnesses"]})
         elif path == "/api/entry":
             etype = qs.get("type", ["contribution"])[0]
+            if etype not in ("contribution", "loan", "repayment", "correction"):
+                etype = "contribution"   # whitelist: blocks stored XSS via type (PR6)
             try:
                 paise = int(qs.get("paise", ["10000"])[0])
             except ValueError:
@@ -213,10 +218,11 @@ INDEX_HTML = """<!doctype html>
 </div>
 
 <script>
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function entry(type,paise){
  fetch('/api/entry?type='+type+'&paise='+paise).then(r=>r.json()).then(s=>{
   var names={contribution:'deposits',loan:'borrows',repayment:'repays'};
-  var line='Sita '+names[type]+' Rs '+(paise/100)+' <span class="tick">&#9989; recorded in chain</span>';
+  var line='Sita '+esc(names[type]||type)+' Rs '+(paise/100)+' <span class="tick">&#9989; recorded in chain</span>';
   document.getElementById('entryline').innerHTML=line;
   refresh();
  });
@@ -243,10 +249,10 @@ function show(s){
  if(s.verdict){v.className='verdict ok';v.textContent='VERDICT: MATCH - receipt and books agree (green = Verified)';}
  else{v.className='verdict bad';v.textContent='VERDICT: '+s.detail+' - receipt FAILS (red = Mismatch)';}
  var tbl=document.getElementById('loanstable'),h='<tr><th>Member</th><th>Loaned</th><th>Repaid</th><th>Outstanding</th></tr>';
- Object.values(s.balances).forEach(b=>{h+='<tr><td>'+b.member+'</td><td>Rs '+(b.loaned_paise/100)+'</td><td>Rs '+(b.repaid_paise/100)+'</td><td><b>Rs '+(b.outstanding_paise/100)+'</b></td></tr>';});
+ Object.values(s.balances).forEach(b=>{h+='<tr><td>'+esc(b.member)+'</td><td>Rs '+esc(b.loaned_paise/100)+'</td><td>Rs '+esc(b.repaid_paise/100)+'</td><td><b>Rs '+esc(b.outstanding_paise/100)+'</b></td></tr>';});
  tbl.innerHTML=h;
  var c=document.getElementById('chainstable'),ch='<tr><th>Seq</th><th>Type</th><th>Member</th><th>Amt</th><th>Hash</th></tr>';
- s.events.forEach(e=>{ch+='<tr><td>'+e.seq+'</td><td>'+e.type+'</td><td>'+e.member+'</td><td>Rs '+(e.amount_paise/100)+'</td><td class="mono">'+(''+e.hash).slice(0,16)+'&hellip;</td></tr>';});
+ s.events.forEach(e=>{ch+='<tr><td>'+esc(e.seq)+'</td><td>'+esc(e.type)+'</td><td>'+esc(e.member)+'</td><td>Rs '+esc(e.amount_paise/100)+'</td><td class="mono">'+esc((''+e.hash).slice(0,16))+'&hellip;</td></tr>';});
  c.innerHTML=ch;
 }
 refresh();
