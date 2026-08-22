@@ -150,5 +150,130 @@ ok, det = verify_receipt(c, r15)
 t("member with no events -> member-no-events-or-missing",
   not ok and ("member-" in det), det)
 
+# ---- security-hardening regression tests (v1.3) ----
+from chain import MAX_AMOUNT_PAISE
+from exporter import hint_flags, export_csv
+
+# 16. quorum must count DISTINCT witness signatures (one sig duplicated twice
+#     must NOT satisfy the two-witness requirement)
+c, root = make_chain()
+root["witnesses"] = [root["witnesses"][0], root["witnesses"][0]]  # same sig twice
+ok, det = verify_receipt(c, receipt_payload("G-RAJ-042", "M07", root, "Sita"))
+t("duplicate witness sig -> quorum-fail (unique count)", not ok and "quorum-fail" in det, det)
+
+# 17. event type must be a known enum (case/spelling spoof rejected at the door)
+c = BahiChain("G")
+try:
+    c.add_event(1, "Loan", "Sita", 10000, "t")   # capital L is not a valid type
+    t("invalid event type -> rejected", False, "no exception")
+except ValueError:
+    t("invalid event type -> rejected", True)
+
+# 18. whitespace-only member name rejected
+c = BahiChain("G")
+try:
+    c.add_event(1, "contribution", "   ", 10000, "t")
+    t("whitespace-only member -> rejected", False, "no exception")
+except ValueError:
+    t("whitespace-only member -> rejected", True)
+
+# 19. control characters in member name rejected (would break hash domain separation)
+c = BahiChain("G")
+try:
+    c.add_event(1, "contribution", "Sita" + chr(31), 10000, "t")
+    t("control-char member -> rejected", False, "no exception")
+except ValueError:
+    t("control-char member -> rejected", True)
+
+# 20. duplicate seq rejected (audit attribution stays unambiguous)
+c = BahiChain("G")
+c.add_event(1, "contribution", "Sita", 10000, "t")
+try:
+    c.add_event(1, "loan", "Asha", 50000, "t")
+    t("duplicate seq -> rejected", False, "no exception")
+except ValueError:
+    t("duplicate seq -> rejected", True)
+
+# 21. reserved meeting id rejected (was a corrupt-chain sentinel collision)
+c = BahiChain("G")
+c.add_event(1, "contribution", "Sita", 10000, "t")
+try:
+    c.close_meeting("__corrupt__", "t")
+    t("reserved meeting_id -> rejected", False, "no exception")
+except ValueError:
+    t("reserved meeting_id -> rejected", True)
+
+# 22. closing the same meeting twice rejected
+c = BahiChain("G")
+c.add_event(1, "contribution", "Sita", 10000, "t")
+c.close_meeting("M1", "t")
+try:
+    c.close_meeting("M1", "t")
+    t("duplicate meeting_id -> rejected", False, "no exception")
+except ValueError:
+    t("duplicate meeting_id -> rejected", True)
+
+# 23. amount bound: above MAX and bool amounts rejected
+c = BahiChain("G")
+try:
+    c.add_event(1, "contribution", "Sita", MAX_AMOUNT_PAISE + 1, "t")
+    t("amount above bound -> rejected", False, "no exception")
+except ValueError:
+    t("amount above bound -> rejected", True)
+c = BahiChain("G")
+try:
+    c.add_event(1, "contribution", "Sita", True, "t")
+    t("bool amount -> rejected", False, "no exception")
+except ValueError:
+    t("bool amount -> rejected", True)
+
+# 24. h() delimiter ambiguity fixed (a field containing the delimiter no longer collides)
+t("h() delimiter ambiguity fixed", h("A" + chr(31), "B") != h("A", chr(31) + "B"))
+
+# 25. h() type confusion fixed (int 1 vs str '1' vs bool True all distinct)
+t("h() type confusion fixed (1 vs '1' vs True)", h(1) != h("1") and h(1) != h(True))
+
+# 26. genesis anchored: a chain whose first event does not chain off the group
+#     genesis (floating prev) is detected even when the hash is re-computed
+c, root = make_chain()
+c.events[0]["prev"] = h("GENESIS", "OTHER-GROUP")
+c.events[0]["hash"] = h(c.events[0]["prev"], c.events[0]["seq"], c.events[0]["type"],
+                       c.events[0]["member"], c.events[0]["amount_paise"], c.events[0]["ts"])
+ok, bad_seq, why = c.verify()
+t("genesis anchored: floating first-event prev -> prev-hash-mismatch",
+  not ok and "prev-hash-mismatch" in why, why)
+
+# 27. event group field bound: a tampered group field is a corruption verdict
+c, root = make_chain()
+c.events[0]["group"] = "G-EVIL"
+ok, bad_seq, why = c.verify()
+t("event group field mismatch -> corrupt-file", not ok and "group mismatch" in why, why)
+
+# 28. CSV formula injection neutralized (leading = + - @ prefixed with a quote)
+c = BahiChain("G")
+c.add_event(1, "contribution", "=1+1", 10000, "t")
+c.close_meeting("M1", "t")
+import csv as _csv, io as _io
+rows = list(_csv.reader(_io.StringIO(export_csv(c))))
+t("CSV formula injection neutralized", rows[1][2].startswith("'="), rows[1][2])
+
+# 29. hint_flags is safe on a malformed event (never crashes)
+c, root = make_chain()
+c.events[0].pop("member")
+try:
+    flags = hint_flags(c)
+    t("hint_flags safe on malformed event (no crash)", isinstance(flags, list))
+except Exception as e:
+    t("hint_flags safe on malformed event (no crash)", False, "%s: %s" % (type(e).__name__, e))
+
+# 30. cross-meeting repayment is NOT a false arithmetic_mismatch (whole-chain net)
+c = BahiChain("G")
+c.add_event(1, "loan", "Kavita", 20000, "t")
+c.close_meeting("M06", "t")
+c.add_event(3, "repayment", "Kavita", 20000, "t")
+c.close_meeting("M07", "t")
+t("cross-meeting repayment -> no arithmetic_mismatch FP",
+  not any(f["hint"] == "arithmetic_mismatch" for f in hint_flags(c)))
+
 print("\n%d/%d PASSED (%d failed)" % (PASS, PASS + FAIL, FAIL))
 sys.exit(0 if FAIL == 0 else 1)
