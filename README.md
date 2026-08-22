@@ -1,61 +1,57 @@
-# BAHI - The Witnessed Ledger
+# BAHI: the witnessed ledger
+Offline member-witnessed SHG ledger. Every entry goes into a SHA-256 chain, every meeting is signed by witnesses, every member carries a receipt that exposes silent edits. No server needed. Team 511, Craft N Code Round 1, PS-17.
 
-Offline-first digital ledger for Indian Self-Help Groups (SHGs). The novel
-part is not the record, it is the RECEIPT: every member leaves the meeting
-holding a receipt that can prove, any time, offline, that the books were
-not changed after she witnessed them.
+## What and why
+10.03 crore women save together in 94.16 lakh SHGs (PIB, 2026-07-04). Today the person who records the money is the only proof of the money: the register belongs to the secretary, the server belongs to the app. Documented failures are national: Rs 107.94 crore in audit deficiencies across 186 blocks in Tamil Nadu (grade B, RTI-backed, New Indian Express, 2026-08-18), a Rs 3.38 crore bank loss with 4 convictions for fake SHGs (Indian Overseas Bank, June 2025), and 1.76% NPA on Rs 2,99,833.35 crore of outstanding SHG bank loans (PIB, 2025-08-08). BAHI makes every member a witness instead of a bystander.
 
-## The problem in one line
-The person who records the money is the only proof of the money. When the
-recorder changes Rs 100 to Rs 10, nobody notices until the corpus is gone.
+## How it works
+- Local SHA-256 event chain: edit anything in the past, every later hash breaks.
+- Meeting close: 2+ members sign the root hash (quorum).
+- Every member receives a QR receipt: group, meeting, her name, root, signatures.
+- Verify OFFLINE anytime: MATCH, or FORK-AT-EVENT-n with a named divergence.
+- Corrections are reversal + replacement only. No edits, ever.
+- Loans and balances are computed deterministically from the chain (loans.py).
+- AI is a hint layer only. The verdict (MATCH/FORK, balances) is pure hash math.
 
-## The mechanism
-- SHA-256 event chain on the meeting device: edit any past event and every
-  later hash breaks
-- Meeting close: 2+ witness keys sign the meeting root (quorum)
-- Member receipt: root + meeting + member + witness signatures
-- Offline verification: MATCH, or FORK-AT-EVENT-n with the exact divergence
-- Pure Python stdlib. Offline: no cloud, no SIM, no internet. The demo
-  UI is a local web page served by http.server on 127.0.0.1 only. No ML
-  in the truth path (deterministic hash math decides).
-- AI assists only (voice entry, hint flags); MATCH/FORK is always math.
+## Quick start
+No dependencies. Python 3 stdlib only.
+  python3 tests.py      # 9/9 tests, exit 0 = all green
+  python3 server.py     # demo UI on http://localhost:8123 (opens browser)
+  python3 demo.py       # 90-second demo runner in the terminal
 
-## The demonstrated cases (verified sources)
-| Case | Amount | Source |
-|---|---|---|
-| Tamil Nadu special audit, 186 block federations | Rs 107.94 crore deficiencies (news headline: Rs 108 crore) | Special audit released 18 Aug 2026 via RTI (NIExpress/Madurai) |
-| Indian Overseas Bank, forged SHG minutes, 4 convicted | Rs 3.38 crore loss | CBI special court, June 2025, Chinthamani branch (lawfullegal.in, 12 Jul 2025) |
-| Andhra Pradesh 2010 | collection abuse class | SC/audit record |
-| Karnataka 2025 | law bans coercive collection from SHG borrowers | state legislation 2025 |
-
-Scale: 144.22 lakh savings-linked SHG accounts (NABARD, 31 Mar 2024);
-94.16 lakh SHGs / 10.03 crore members digitized under DAY-NRLM (PIB,
-4 Jul 2026); Rs 11,07,479.60 crore cumulative credit linked, Rs 2,99,833.35
-crore outstanding, NPA 1.76%.
-
-## Run it
-python3 tests.py        # 9 attack scenarios, all must pass
-python3 server.py       # demo UI at http://127.0.0.1:8123
-python3 demo.py         # scripted MATCH -> FORK-AT-EVENT-7 -> reset
-
-Demo beats: entry with 4 icons + repeat-back, meeting close with 2 witness
-signs, ATTACK button (Rs 100 -> Rs 10), member receipt shows FORK, auditor
-view with hint flags + JSON/CSV export, honest redo shows MATCH.
+## 90-second demo script
+1. "Sita deposits Rs 100" via 4 icon buttons, voice repeat line + green tick (10s).
+2. Close meeting M07, 2 witnesses sign, member receipt prints (10s).
+3. ATTACK: secretary edits Rs 100 to Rs 10 on event 7 (5s).
+4. Member receipt vs chain: FORK AT EVENT 7, red screen (5s).
+5. Auditor view: fork report, chain table, loan tracker (15s).
+6. Honest redo: MATCH, green screen (15s).
+Zero network. Deterministic: same input, same verdict, every run.
 
 ## Honest boundaries
-- Detects edits AFTER witnessing. It is not fraud prevention, it is fraud
-  DETECTION with a member-held artifact. Mass collusion at entry time is
-  outside our claim.
-- Not a LokOS replacement. BAHI verifies; integrations come later.
-- HMAC witness keys are a structural protocol for the prototype, not a
-  security audit. Production path: asymmetric keys, receipt gossip,
-  federation-scale analysis (roadmap).
+- Detects silent edits AFTER witnessing. Mass collusion at entry time (everyone agrees to enter a false amount) cannot be caught, and we say so.
+- The receipt QRs in this demo are text placeholders rendered in the UI, not yet scannable QR codes.
+- Not a security audit. Not a LokOS replacement. LokOS records the books; BAHI makes the books verifiable by the member who holds the receipt, offline, forever.
+- Voice entry (Vosk Hindi 42 MB, 20.89% WER IITM) is a prototype path; the deterministic base is the icon + repeat-back flow.
+- 50-500 events per group cannot train any neural net; hints are rules-first, per the research (TabPFN AUC 0.934 vs XGB 0.924 on 18 datasets applies only at federation scale).
 
-## Tech
-Python 3 stdlib only (http.server, hashlib, json). Single meeting device,
-offline, deterministic: same files produce the same bytes and the same
-verdict on any laptop.
+## Scam evidence (every number sourced)
+- Rs 107.94 crore deficiencies, 186 blocks, altered bills, unsupported payments, copied cashbooks, missing reconciliations (TN special audit via RTI, grade B, 18 Aug 2026).
+- Rs 3.38 crore IOB loss: reused identities, forged signatures, fabricated minutes, no field verification; 4 convicted, 7-year sentences (June 2025, grade B).
+- 2010 Andhra Pradesh: collection abuse allegations (threats, repeated visits, asset seizure); suicide causation contested by research.
+- Rs 1,000 per transaction / Rs 5,000 stored UPI Lite caps: bounded local authority is a proven design pattern (NPCI, via priorart report).
+- Source reports: war1v5-ps-18, war1v6-bahi-scams, war1v6-bahi-ai-voice, war1v6-bahi-sec-hardening, war1v7-bahi-datasets-real, war1v7-bahi-ml-methods (all in ~/parallel-ai-stack/test-results/, accessed 2026-08-22).
 
-Built for Craft N Code 2026 Round 1 (PS-17, SHG Digital Ledger). All
-research claims traceable to the war-room corpus (21-statement
-startup-diligence wave + SHG-specific deep research).
+## Repo layout
+chain.py   hash chain, receipts, verify_receipt (the core, pure stdlib)
+witness.py witness signing
+loans.py   deterministic balances, rupees formatting
+server.py  demo web UI on port 8123
+tests.py   9/9 attack tests (edit, delete, reorder, tamper, forgery, ghost)
+demo.py    terminal demo runner
+
+## Run it
+  git clone <repo-url> && cd craft-n-code-bahi
+  python3 tests.py
+  python3 server.py     # then open http://localhost:8123
+Built and tested on CachyOS, Python 3.14, zero packages installed.
