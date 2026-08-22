@@ -16,7 +16,7 @@ Run: python3 server.py  (then open http://localhost:8123)
 import json, urllib.parse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from chain import BahiChain, receipt_payload, verify_receipt, MIN_WITNESSES
-from witness import sign
+from witness import sign_entry
 from loans import balances
 from exporter import audit_report, export_csv
 
@@ -33,7 +33,7 @@ def build_demo_chain():
     chain.add_event(1, "loan", "Kavita", 20000, t)
     r6 = chain.close_meeting("M06", t)
     for w in WITNESSES:
-        r6["witnesses"].append(sign({"root": r6["root_hash"], "meeting": "M06"}, "pass-" + w, w))
+        r6["witnesses"].append(sign_entry({"root": r6["root_hash"], "meeting": "M06"}, "pass-" + w, w))
     # M07 (live meeting): seqs 3..8. Event seq 8 = Sita deposit = attack target.
     chain.add_event(3, "contribution", "Sita", 10000, t)
     chain.add_event(4, "contribution", "Geeta", 10000, t)
@@ -128,8 +128,7 @@ class Handler(BaseHTTPRequestHandler):
             chain = STATE["chain"]
             member = "Sita"
             try:
-                chain.add_event(len([e for e in chain.events if e["type"] != "MEETING-CLOSE"]) + 1,
-                                etype, member, paise, "2026-08-02T10:00:00")
+                chain.add_event(None, etype, member, paise, "2026-08-02T10:00:00")
             except ValueError as e:
                 self.send_json({"ok": False, "detail": str(e)})
                 return
@@ -145,7 +144,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
             root = chain.close_meeting("M07", "2026-08-02T10:00:00")
             for w in WITNESSES:
-                root["witnesses"].append(sign({"root": root["root_hash"], "meeting": "M07"}, "pass-" + w, w))
+                root["witnesses"].append(sign_entry({"root": root["root_hash"], "meeting": "M07"}, "pass-" + w, w))
             STATE["root"] = root
             STATE["receipt"] = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain)
             STATE["verdict"], STATE["last_detail"] = verify_receipt(chain, STATE["receipt"])
