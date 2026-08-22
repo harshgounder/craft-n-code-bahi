@@ -4,6 +4,7 @@ meeting, witness signing, member receipt, ATTACK (tamper), fork detection.
 Deterministic: same inputs produce identical stdout (sha256-stable)."""
 from chain import BahiChain, receipt_payload, verify_receipt
 from witness import sign
+import os, tempfile
 
 def p(x):
     print(x)
@@ -30,7 +31,7 @@ def run():
     ok, detail = verify_receipt(chain, receipt)
     p("MEMBER RECEIPT (Sita): %s" % detail)
     p("receipt root: %s..." % receipt["root"][:16])
-    chain.save("/tmp/bahi-honest.json")
+    chain.save(os.path.join(tempfile.gettempdir(), "bahi-honest.json"))
     p("chain saved, %d events, chain root %s..." % (len(chain.events), root["root_hash"][:16]))
 
     p("")
