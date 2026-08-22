@@ -113,32 +113,26 @@ def run():
     del c.events[0]["amount_paise"]
     try:
         b = balances(c)
-        t("VULN.loans.corrupt chain balances() crashes", False, "no exception (expected KeyError)")
-    except KeyError as e:
-        t("VULN.loans.corrupt chain balances() crashes", True,
-          "KeyError %r: balances() has NO guard against missing fields, contrary to chain.py's no-crash promise" % (e,))
+        t("SAFE.loans.corrupt chain balances() no crash (missing fields skipped)",
+          isinstance(b, dict), "corrupt amount field no longer crashes the replay")
     except Exception as e:
-        t("VULN.loans.corrupt chain balances() crashes", True, "%s: %r" % (type(e).__name__, e))
+        t("SAFE.loans.corrupt chain balances() no crash (missing fields skipped)", False, "%s: %r" % (type(e).__name__, e))
     c = chain_with([("loan", "A", 1000)])
     c.events[0]["amount_paise"] = None
     try:
         b = balances(c)
-        t("VULN.loans.null amount balances() crashes", False, "no exception (expected TypeError)")
-    except TypeError as e:
-        t("VULN.loans.null amount balances() crashes", True,
-          "TypeError %r: None amount crashes the += replay" % (e,))
+        t("SAFE.loans.null amount balances() no crash (skipped)", isinstance(b, dict),
+          "None amount skipped, no TypeError")
     except Exception as e:
-        t("VULN.loans.null amount balances() crashes", True, "%s: %r" % (type(e).__name__, e))
+        t("SAFE.loans.null amount balances() no crash (skipped)", False, "%s: %r" % (type(e).__name__, e))
     c = chain_with([("loan", "A", 1000)])
     c.events[0]["amount_paise"] = [1, 2]
     try:
         b = balances(c)
-        t("VULN.loans.list amount balances() crashes", False, "no exception (expected TypeError)")
-    except TypeError as e:
-        t("VULN.loans.list amount balances() crashes", True,
-          "TypeError %r: list amount crashes; a corrupt chain file takes down /api/state's loan tracker" % (e,))
+        t("SAFE.loans.list amount balances() no crash (skipped)", isinstance(b, dict),
+          "list amount skipped, no TypeError")
     except Exception as e:
-        t("VULN.loans.list amount balances() crashes", True, "%s: %r" % (type(e).__name__, e))
+        t("SAFE.loans.list amount balances() no crash (skipped)", False, "%s: %r" % (type(e).__name__, e))
     c = chain_with([("loan", "A", 1000)])
     c.events[0]["member"] = None
     try:

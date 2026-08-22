@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""stress_tests.py - BAHI robustness under extreme / adversarial input,
+"""stress_tests.py - BAHI hardness under extreme / adversarial input,
 against the frozen src/. Each test reports PASS (survived/correct/deterministic)
 or FAIL (crashed/corrupted/non-deterministic). Unexpected exceptions are caught
 and reported rather than aborting, so the whole battery completes.

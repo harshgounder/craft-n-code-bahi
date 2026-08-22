@@ -1,4 +1,4 @@
-# BAHI — Benchmarks, Stress Tests & Adversarial Audit
+# BAHI - Benchmarks, Stress Tests & Adversarial Audit
 
 An independent benchmark + stress + attack battery for the **BAHI** SHG ledger
 prototype (Craft N Code 2026, PS-17). This directory is self-contained: it
@@ -19,7 +19,7 @@ bench/
 ├── src/                  frozen code under test
 │   ├── chain.py  witness.py  loans.py  exporter.py
 ├── attacks.py            25 adversarial findings (severity-ranked)
-├── stress_tests.py       12 robustness probes
+├── stress_tests.py       12 hardness probes
 ├── benchmarks.py         throughput + scaling
 ├── attack_fuzz.py        10,424 seeded fuzz probes (6 suites)
 ├── benchmark_matrix.py   11,180 timed samples (microbench + scaling sweep)
@@ -45,7 +45,7 @@ python run_all.py            # everything, captured to output/
 
 ## What it found (TL;DR)
 
-- The **hash chain is sound** — every tamper (edit/delete/reorder/root-swap/
+- The **hash chain is sound** - every tamper (edit/delete/reorder/root-swap/
   witness-removal/ghost-meeting/cross-group/corrupt-file) is detected.
 - The **HMAC-symmetric caveat is solved**: Ed25519 witness signatures let an
   offline member verify a witness signature with only the public key on the
@@ -53,12 +53,12 @@ python run_all.py            # everything, captured to output/
 - **21,604 fuzz + benchmark probes** now run deterministically (10,424 fuzz,
   11,180 timed samples), and they surfaced + fixed a real crash-resistance gap:
   `verify()`/`hint_flags()`/`export_csv()`/`balances()` crashed on non-dict or
-  field-missing events from a hand-edited JSON — all now return structured
+  field-missing events from a hand-edited JSON - all now return structured
   verdicts / skip.
 - `hint_flags` is **O(E log E)** (was quadratic) and never raises on any input.
 - `attack_fuzz.py` runs **6 suites**: CSV-injection (1200), XSS (1200), chain
   mutation/corruption (1200), random-ledger property (4500), receipt tamper
-  (1200), and type-confusion (1000) — all deterministic, all green.
+  (1200), and type-confusion (1000) - all deterministic, all green.
 
 Full detail and the prioritized fix list: **`REPORT.md`**. Non-code decisions
 (identity/KYC, key custody, anchoring, privacy): **`../docs/PRODUCT-DECISIONS.md`**.
@@ -66,7 +66,7 @@ Full detail and the prioritized fix list: **`REPORT.md`**. Non-code decisions
 ## Why a frozen snapshot?
 
 The upstream repository is under active, concurrent development (the code
-changed between the start and end of this audit — several findings were fixed
+changed between the start and end of this audit - several findings were fixed
 mid-audit). To make the results reproducible, the source under test was copied
 to `src/` and pinned by SHA-256. Re-running any suite re-tests that exact code.
 To re-audit a newer version, copy the fresh `chain.py`, `witness.py`,

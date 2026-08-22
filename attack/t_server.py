@@ -122,7 +122,7 @@ def run():
       stb["events"][-1]["type"] == "contribution", "whitelist replaces the payload with contribution")
     t("SAFE.http.xss.002 esc() present on chain table render path",
       "function esc(s)" in srv.INDEX_HTML and "esc(e.member)" in srv.INDEX_HTML and "esc(e.type)" in srv.INDEX_HTML,
-      "PR6 UI escaping added to show() table builder")
+      "UI escaping restored on the ui-max render path (server pre-escapes hints; client esc()s state fields)")
     req("/api/entry?type=MEETING-CLOSE&paise=666")
     st, stb = state()
     t("SAFE.http.xss.003 MEETING-CLOSE type via /api/entry neutralized (protocol pollution fixed)",

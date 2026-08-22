@@ -28,7 +28,7 @@ def balances(chain):
 
     Crash-resistant: events missing `type`/`member` or a numeric `amount_paise`
     (possible only in a hand-edited/corrupt chain) are skipped, never fed into
-    arithmetic — mirroring exporter.hint_flags's `invalid_event` treatment."""
+    arithmetic - mirroring exporter.hint_flags's `invalid_event` treatment."""
     b = {}
     for ev in chain.events:
         if not isinstance(ev, dict):

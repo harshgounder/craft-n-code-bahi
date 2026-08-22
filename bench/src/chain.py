@@ -409,7 +409,7 @@ def verify_receipt(chain, receipt, witness_keys=None):
         return False, "witness-signature-differs"
 
     # Cryptographic verification, per-record mode dispatch:
-    #   * Ed25519 records (verify_key present) are ALWAYS verified — any member
+    #   * Ed25519 records (verify_key present) are ALWAYS verified - any member
     #     can do this offline with only the public key (no secret, no custody).
     #     This is the fix for the HMAC-symmetric caveat.
     #   * Legacy HMAC records are verified only when `witness_keys` is supplied

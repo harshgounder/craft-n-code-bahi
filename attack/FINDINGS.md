@@ -35,7 +35,7 @@ current HEAD (tests.py 17/17, including the new close-swap test):
 Honest boundaries (declared, not defects): a full-file attacker with no
 held receipt can rewrite everything (receipt-less tampering is outside the
 model); HMAC witness keys are structural, not audited crypto; the demo UI
-is a localhost showcase, not a production boundary.
+is a localhost display, not a production boundary.
   - Stored XSS via /api/entry type -> innerHTML: FIXED (type whitelist
     server-side + esc() on all UI render paths).
   - Host guard bypass (127.0.0.1.evil.com /localhost.evil.com): FIXED

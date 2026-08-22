@@ -11,14 +11,14 @@ Two signing modes are supported:
 2. Ed25519 (asymmetric, recommended). Each witness holds a PRIVATE signing key
    and publishes a PUBLIC verify key that travels inside the witness record on
    the receipt. Any member holding the receipt can verify the signature herself
-   — no shared secret, no key custody — because verification needs only the
+   - no shared secret, no key custody - because verification needs only the
    public key. This is the solution to the HMAC-symmetric caveat.
 
 Honest boundary (documented, unchanged): Ed25519 gives offline verification
 and non-repudiation (a witness cannot later deny signing, and no one else can
 forge her signature), but it does NOT bind a public key to a real human. That
 binding (who issued Meera's key, and is it really Meera) is an out-of-band
-identity/KYC trust anchor — see docs/PRODUCT-DECISIONS.md, "Key management".
+identity/KYC trust anchor - see docs/PRODUCT-DECISIONS.md, "Key management".
 
 The Ed25519 path requires the `cryptography` package (pip install cryptography);
 the HMAC path remains dependency-free. If `cryptography` is missing, every
@@ -99,7 +99,7 @@ def is_valid_sig(sig):
 
 
 # ---------------------------------------------------------------------------
-# Ed25519 (asymmetric, recommended) — solves offline verification
+# Ed25519 (asymmetric, recommended) - solves offline verification
 # ---------------------------------------------------------------------------
 def ed25519_available():
     return _HAS_ED25519

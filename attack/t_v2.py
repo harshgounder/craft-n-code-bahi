@@ -64,9 +64,8 @@ def run():
     swap_close(c, r7)
     okv, _, whyv = c.verify()
     okr, det = verify_receipt(c, rec)
-    t("VULN.v2.close-swap close event deleted+replaced at same seq: bound receipt still MATCHes",
-      okv and okr and det == "MATCH",
-      "why=%s det=%s: member's own events untouched (hashes identical), root metadata stale-equal to receipt root, terminality passes (new close seq 9) -> silent close replacement" % (whyv, det))
+    t("SAFE.v2.close-swap close deletion+replacement CAUGHT (close-hash tie)",
+      not okr and "FORK" in det, "det=%s" % det)
 
     # ghost-insert forgery: delete close, inject arbitrary event, re-close same seq
     c, _, r7 = make_bound()
@@ -75,9 +74,7 @@ def run():
     okv, _, whyv = c.verify()
     okr, det = verify_receipt(c, rec)
     ghost_rows = [e for e in c.events if e.get("member") == "Ghost"]
-    t("VULN.v2.ghost-insert FORGERY: Rs 10,000,000 Ghost contribution inserted into M07, bound receipt MATCHes",
-      okv and okr and det == "MATCH" and ghost_rows and ghost_rows[0]["amount_paise"] == 1000000000,
-      "verify=%s receipt=%s ghost=%s: member binding pins ONLY the receipt member's line items; any OTHER member's events below the close are unprotected -> entire fraud unobservable to Sita's receipt" % (okv, det, ghost_rows[0]["amount_paise"] if ghost_rows else None))
+    t("SAFE.v2.ghost-insert FORGERY CAUGHT", not okr, "det=%s" % det)
 
     # same attack but with full recompute after swap (still MATCH for swap-only)
     c, _, r7 = make_bound()
@@ -85,7 +82,7 @@ def run():
     swap_close(c, r7)
     full_recompute(c)
     okr, det = verify_receipt(c, rec)
-    t("VULN.v2.close-swap2 close swap + full recompute: bound receipt MATCHes", okr and det == "MATCH", det)
+    t("SAFE.v2.close-swap2 close swap + recompute CAUGHT", not okr, "det=%s" % det)
 
     # ============ 2. legacy receipt (no member_events) downgrade ============
     c, _, r7 = make_bound()
@@ -94,9 +91,7 @@ def run():
     c.events[6]["amount_paise"] = 1
     full_recompute(c)
     okr, det = verify_receipt(c, rec)
-    t("VULN.v2.downgrade member_events stripped: recompute MATCHes via legacy path",
-      okr and det == "MATCH",
-      "det=%s: verify_receipt uses receipt.get('member_events'); removing the key downgrades to member-exists check -> original recompute hole is back" % det)
+    t("SAFE.v2.downgrade member_events stripped: still CAUGHT by close-hash tie", not okr, "det=%s" % det)
 
     # legacy receipts in general still fully vulnerable
     c, _, r7 = make_bound()
@@ -104,8 +99,7 @@ def run():
     c.events[6]["amount_paise"] = 1
     full_recompute(c)
     okr, det = verify_receipt(c, rec)
-    t("VULN.v2.legacy-recompute legacy receipts still MATCH under recompute", okr and det == "MATCH",
-      "any receipt issued without chain context (pre-PR4 copies, printed QRs) verifies MATCH after edit+recompute")
+    t("SAFE.v2.legacy-recompute legacy receipts CAUGHT by close-hash tie", not okr, "det=%s" % det)
 
     # bound receipt DOES catch recompute (their claim - verify it)
     c, _, r7 = make_bound()
@@ -113,7 +107,8 @@ def run():
     c.events[6]["amount_paise"] = 1
     full_recompute(c)
     okr, det = verify_receipt(c, rec)
-    t("SAFE.v2.recompute bound receipt catches edit+recompute", not okr and "member-event" in det, det)
+    t("SAFE.v2.recompute bound receipt catches edit+recompute",
+      not okr and ("member-event" in det or "FORK" in det or "corrupt" in det), det)
 
     # prefix deletion caught for bound receipts
     c, _, r7 = make_bound()
@@ -121,25 +116,22 @@ def run():
     del c.events[0]; del c.events[0]              # erase M06 entirely
     full_recompute(c)
     okr, det = verify_receipt(c, rec)
-    t("SAFE.v2.prefix-del bound receipt catches whole-M06 deletion", not okr and "member-event" in det, det)
+    t("SAFE.v2.prefix-del bound receipt catches whole-M06 deletion",
+      not okr and ("member-event" in det or "FORK" in det or "corrupt" in det), det)
 
     # ============ 3. member binding gaps ============
     # attendance spoof: member whose events are ALL in M06 gets an M07 receipt
     c, r6, r7 = make_bound()
     rec = receipt_payload("G-RAJ-042", "M07", r7, "Kavita", c)   # Kavita: M06 loan, M07 repayment
     okr, det = verify_receipt(c, rec)
-    t("VULN.v2.attendance receipt for M07 member who only acts in M06 also MATCHes",
-      okr and det == "MATCH",
-      "member_events spans seq<=root_seq across ALL meetings: no per-meeting participation proof; any historical member can be receipted for a meeting they never attended")
+    t("SAFE.v2.attendance cross-meeting receipt CAUGHT", not okr, "det=%s" % det)
     # partial receipt: drop ONE of the member's own events from member_events -> MATCH
     c, _, r7 = make_bound()
     rec = receipt_payload("G-RAJ-042", "M07", r7, "Sita", c)
     assert len(rec["member_events"]) >= 2
     rec["member_events"] = rec["member_events"][:1]              # she "forgot" Rs 100
     okr, det = verify_receipt(c, rec)
-    t("VULN.v2.partial member_events subset MATCHes (no completeness check)",
-      okr and det == "MATCH",
-      "receipt carrying only the FIRST of Sita's deposits still MATCHes: member cannot prove omitted line items; secretary can hand out 'partial' receipts")
+    t("SAFE.v2.partial member_events subset CAUGHT (completeness enforced)", not okr, "det=%s" % det)
     # inflated member_events IS caught
     c, _, r7 = make_bound()
     rec = receipt_payload("G-RAJ-042", "M07", r7, "Sita", c)
@@ -166,9 +158,8 @@ def run():
     close["hash"] = h(close["prev"], close["seq"], close["type"], close["member"], close["amount_paise"], close["ts"])
     okv, _, whyv = c.verify()
     okr, det = verify_receipt(c, rec)
-    t("VULN.v2.dupseq seq 8 duplicated by another member -> honest Sita receipt FORKs (availability)",
-      okv and not okr and det == "member-event-does-not-belong",
-      "verify=%s why=%s receipt=%s: seq_to_member dict last-wins: Ghost's seq 8 shadows Sita's; a member can sabotage another member's receipt with a same-seq correction, all while chain.verify() passes" % (okv, whyv, det))
+    t("SAFE.v2.dupseq duplicate seq REJECTED at API (PR10), no shadowing possible",
+      not okv, "verify=False why=%s (PR10 strict seq kills the attack at the door)" % whyv)
     # member field in chain vs receipt: member name case/pidgin
     c, _, r7 = make_bound()
     rec = receipt_payload("G-RAJ-042", "M07", r7, "Sita", c)
@@ -220,7 +211,8 @@ def run():
     # open-meeting entry + attack no-op
     srv.rebuild()
     body = json.loads(req("/api/attack")[1])
-    t("SAFE.v2.open-attack attack while meeting open is a no-op", body.get("verdict") is None and "meeting-open" in body.get("detail", ""), str(body))
+    t("SAFE.v2.open-attack attack while meeting open is a no-op",
+      body.get("verdict") is None and ("meeting-open" in body.get("detail", "") or "no receipt yet" in body.get("detail", "")), str(body))
     b1 = st()
     req("/api/entry?type=contribution&paise=100")
     b2 = st()

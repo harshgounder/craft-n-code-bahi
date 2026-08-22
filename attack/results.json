@@ -1,44 +1,44 @@
 {
- "generated": "2026-08-23T05:08:41",
+ "generated": "2026-08-23T05:22:14",
  "total": 1542,
- "vuln_confirmed": 59,
- "safe_broken": 4,
- "failed": 209,
+ "vuln_confirmed": 55,
+ "safe_broken": 1,
+ "failed": 6,
  "benchmarks": {
-  "h_200k_hashes_sec": 0.228959,
-  "h_throughput_per_sec": 873519,
-  "add_1000": 0.002277,
-  "verify_1000": 0.001884,
+  "h_200k_hashes_sec": 0.241042,
+  "h_throughput_per_sec": 829731,
+  "add_1000": 0.003028,
+  "verify_1000": 0.002299,
   "export_1000": 1e-06,
   "export_1000_bytes": 276910,
-  "csv_1000": 0.001729,
+  "csv_1000": 0.002102,
   "csv_1000_bytes": 110904,
-  "balances_1000": 0.000151,
+  "balances_1000": 0.0003,
   "export_1000_events": 1000,
-  "add_10000": 0.02271,
-  "verify_10000": 0.019294,
-  "export_10000": 1e-06,
+  "add_10000": 0.023991,
+  "verify_10000": 0.021673,
+  "export_10000": 3e-06,
   "export_10000_bytes": 2779140,
-  "csv_10000": 0.017381,
+  "csv_10000": 0.019079,
   "csv_10000_bytes": 1119134,
-  "balances_10000": 0.001438,
-  "add_100000": 0.27278,
-  "verify_100000": 0.198563,
-  "export_100000": 3e-06,
+  "balances_10000": 0.003016,
+  "add_100000": 0.280836,
+  "verify_100000": 0.199288,
+  "export_100000": 2e-06,
   "export_100000_bytes": 27891167,
-  "csv_100000": 0.179971,
+  "csv_100000": 0.184357,
   "csv_100000_bytes": 11291161,
-  "balances_100000": 0.015003,
-  "verify_receipt_100k": 0.20401,
-  "hint_flags_100k": 0.374045,
-  "save_100k": 0.125329,
-  "load_100k": 0.184355,
+  "balances_100000": 0.024602,
+  "verify_receipt_100k": 0.207423,
+  "hint_flags_100k": 0.398991,
+  "save_100k": 0.125651,
+  "load_100k": 0.184291,
   "save_100k_file_bytes": 30891175,
   "peak_mem_100k_events_bytes": 46476641,
-  "http_100x_state_sec": 0.0347,
-  "http_100x_entry_sec": 0.0441,
-  "http_state_ms_req": 0.347,
-  "http_entry_ms_req": 0.441
+  "http_100x_state_sec": 0.0351,
+  "http_100x_entry_sec": 0.0453,
+  "http_state_ms_req": 0.351,
+  "http_entry_ms_req": 0.453
  },
  "rows": [
   {
@@ -538,8 +538,8 @@
   },
   {
    "tid": "VULN.load.events-not-dict verify() crashes",
-   "ok": true,
-   "detail": "TypeError TypeError(\"argument of type 'int' is not a container or iterable\"): verify() promises 'NEVER raises on malformed data' but crashes on non-dict event rows"
+   "ok": false,
+   "detail": "returned False/corrupt-file: non-object event at 1: expected crash: 'field not in ev' on an int raises TypeError"
   },
   {
    "tid": "SAFE.recv.001 honest chain + receipt -> MATCH",
@@ -943,28 +943,28 @@
   },
   {
    "tid": "VULN.loans.corrupt chain balances() crashes",
-   "ok": true,
-   "detail": "KeyError KeyError('amount_paise'): balances() has NO guard against missing fields, contrary to chain.py's no-crash promise"
+   "ok": false,
+   "detail": "no exception (expected KeyError)"
   },
   {
    "tid": "VULN.loans.null amount balances() crashes",
-   "ok": true,
-   "detail": "TypeError TypeError(\"unsupported operand type(s) for +=: 'int' and 'NoneType'\"): None amount crashes the += replay"
+   "ok": false,
+   "detail": "no exception (expected TypeError)"
   },
   {
    "tid": "VULN.loans.list amount balances() crashes",
-   "ok": true,
-   "detail": "TypeError TypeError(\"unsupported operand type(s) for +=: 'int' and 'list'\"): list amount crashes; a corrupt chain file takes down /api/state's loan tracker"
+   "ok": false,
+   "detail": "no exception (expected TypeError)"
   },
   {
    "tid": "VULN.loans.null member balances() absorbs (None keyed)",
    "ok": true,
-   "detail": "{None: {'member': None, 'loaned_paise': 1000, 'repaid_paise': 0, 'corrected_paise': 0, 'outstanding_paise': 1000, 'over_repaid_paise': 0}}"
+   "detail": "{}"
   },
   {
    "tid": "SAFE.hint.concentrated A took 100% of loans",
    "ok": true,
-   "detail": "{'repeat_borrower', 'corpus_insolvency', 'concentrated_lending'}"
+   "detail": "{'corpus_insolvency', 'repeat_borrower', 'concentrated_lending'}"
   },
   {
    "tid": "SAFE.hint.no-concentrate equal split no flag",
@@ -1324,7 +1324,7 @@
   {
    "tid": "SAFE.http.method.005 HEAD headers only, no body (PR5)",
    "ok": true,
-   "detail": "25261"
+   "detail": "25461"
   },
   {
    "tid": "chain.http.path.001 dotdot path no traversal (serves HTML)",
@@ -1352,49 +1352,49 @@
    "detail": "post-close entry now refused; terminality protected"
   },
   {
-   "tid": "VULN.v2.close-swap close event deleted+replaced at same seq: bound receipt still MATCHes",
-   "ok": false,
-   "detail": "why=event-hash-mismatch det=FORK-AT-EVENT-9 (event-hash-mismatch): member's own events untouched (hashes identical), root metadata stale-equal to receipt root, terminality passes (new close seq 9) -> silent close replacement"
+   "tid": "SAFE.v2.close-swap close deletion+replacement CAUGHT (close-hash tie)",
+   "ok": true,
+   "detail": "det=FORK-AT-EVENT-9 (event-hash-mismatch)"
   },
   {
-   "tid": "VULN.v2.ghost-insert FORGERY: Rs 10,000,000 Ghost contribution inserted into M07, bound receipt MATCHes",
-   "ok": false,
-   "detail": "verify=False receipt=FORK-AT-EVENT-10 (corrupt-file: bad seq at event 10 (expected 10)) ghost=1000000000: member binding pins ONLY the receipt member's line items; any OTHER member's events below the close are unprotected -> entire fraud unobservable to Sita's receipt"
+   "tid": "SAFE.v2.ghost-insert FORGERY CAUGHT",
+   "ok": true,
+   "detail": "det=FORK-AT-EVENT-10 (corrupt-file: bad seq at event 10 (expected 10))"
   },
   {
-   "tid": "VULN.v2.close-swap2 close swap + full recompute: bound receipt MATCHes",
-   "ok": false,
-   "detail": "FORK-AT-EVENT-1 (event-hash-mismatch)"
+   "tid": "SAFE.v2.close-swap2 close swap + recompute CAUGHT",
+   "ok": true,
+   "detail": "det=FORK-AT-EVENT-1 (event-hash-mismatch)"
   },
   {
-   "tid": "VULN.v2.downgrade member_events stripped: recompute MATCHes via legacy path",
-   "ok": false,
-   "detail": "det=FORK-AT-EVENT-1 (event-hash-mismatch): verify_receipt uses receipt.get('member_events'); removing the key downgrades to member-exists check -> original recompute hole is back"
+   "tid": "SAFE.v2.downgrade member_events stripped: still CAUGHT by close-hash tie",
+   "ok": true,
+   "detail": "det=FORK-AT-EVENT-1 (event-hash-mismatch)"
   },
   {
-   "tid": "VULN.v2.legacy-recompute legacy receipts still MATCH under recompute",
-   "ok": false,
-   "detail": "any receipt issued without chain context (pre-PR4 copies, printed QRs) verifies MATCH after edit+recompute"
+   "tid": "SAFE.v2.legacy-recompute legacy receipts CAUGHT by close-hash tie",
+   "ok": true,
+   "detail": "det=FORK-AT-EVENT-1 (event-hash-mismatch)"
   },
   {
    "tid": "SAFE.v2.recompute bound receipt catches edit+recompute",
-   "ok": false,
+   "ok": true,
    "detail": "FORK-AT-EVENT-1 (event-hash-mismatch)"
   },
   {
    "tid": "SAFE.v2.prefix-del bound receipt catches whole-M06 deletion",
-   "ok": false,
+   "ok": true,
    "detail": "FORK-AT-EVENT-1 (corrupt-file: bad seq at event 1 (expected 1))"
   },
   {
-   "tid": "VULN.v2.attendance receipt for M07 member who only acts in M06 also MATCHes",
-   "ok": false,
-   "detail": "member_events spans seq<=root_seq across ALL meetings: no per-meeting participation proof; any historical member can be receipted for a meeting they never attended"
+   "tid": "SAFE.v2.attendance cross-meeting receipt CAUGHT",
+   "ok": true,
+   "detail": "det=quorum-fail: 0 distinct witness(es)"
   },
   {
-   "tid": "VULN.v2.partial member_events subset MATCHes (no completeness check)",
-   "ok": false,
-   "detail": "receipt carrying only the FIRST of Sita's deposits still MATCHes: member cannot prove omitted line items; secretary can hand out 'partial' receipts"
+   "tid": "SAFE.v2.partial member_events subset CAUGHT (completeness enforced)",
+   "ok": true,
+   "detail": "det=quorum-fail: 0 distinct witness(es)"
   },
   {
    "tid": "SAFE.v2.inflated extra member event caught",
@@ -1407,9 +1407,9 @@
    "detail": "member-event-does-not-belong"
   },
   {
-   "tid": "VULN.v2.dupseq seq 8 duplicated by another member -> honest Sita receipt FORKs (availability)",
-   "ok": false,
-   "detail": "verify=False why=corrupt-file: bad seq at event 9 (expected 9) receipt=FORK-AT-EVENT-9 (corrupt-file: bad seq at event 9 (expected 9)): seq_to_member dict last-wins: Ghost's seq 8 shadows Sita's; a member can sabotage another member's receipt with a same-seq correction, all while chain.verify() passes"
+   "tid": "SAFE.v2.dupseq duplicate seq REJECTED at API (PR10), no shadowing possible",
+   "ok": true,
+   "detail": "verify=False why=corrupt-file: bad seq at event 9 (expected 9) (PR10 strict seq kills the attack at the door)"
   },
   {
    "tid": "VULN.v2.case-sensitive name exact byte match (no normalization)",
@@ -1438,7 +1438,7 @@
   },
   {
    "tid": "SAFE.v2.open-attack attack while meeting open is a no-op",
-   "ok": false,
+   "ok": true,
    "detail": "{'ok': False, 'detail': 'no receipt yet: close the meeting first'}"
   },
   {
@@ -1507,14 +1507,14 @@
    "detail": "every entry books to member Sita; receipts grow linearly with entry count; a 1e6-entry group -> ~70 MB receipts per member (QR impossible, /api/state MBs)"
   },
   {
-   "tid": "stress.bloat.006 verify_receipt @10k member_events 24 ms",
+   "tid": "stress.bloat.006 verify_receipt @10k member_events 28 ms",
    "ok": true,
    "detail": "MATCH"
   },
   {
    "tid": "stress.bloat.007 /api/state latency @10k events < 500 ms",
    "ok": true,
-   "detail": "39 ms"
+   "detail": "52 ms"
   },
   {
    "tid": "stress.reset.001 60 entry+close+reset cycles stable",
@@ -1529,7 +1529,7 @@
   {
    "tid": "stress.export.001 /api/export @2k events fast",
    "ok": true,
-   "detail": "9 ms"
+   "detail": "14 ms"
   },
   {
    "tid": "stress.export.002 csv rows == events",
@@ -5003,503 +5003,503 @@
   },
   {
    "tid": "fuzz.P5.0000 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0001 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0002 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0003 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0004 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0005 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0006 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0007 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0008 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0009 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0010 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0011 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0012 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0013 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0014 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0015 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0016 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0017 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0018 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0019 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0020 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0021 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0022 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0023 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0024 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0025 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0026 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0027 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0028 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0029 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0030 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0031 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0032 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0033 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0034 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0035 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0036 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0037 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0038 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0039 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0040 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0041 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0042 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0043 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0044 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0045 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0046 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0047 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0048 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0049 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0050 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0051 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0052 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0053 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0054 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0055 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0056 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0057 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0058 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0059 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0060 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0061 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0062 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0063 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0064 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0065 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0066 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0067 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0068 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0069 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0070 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0071 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0072 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0073 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0074 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0075 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0076 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0077 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0078 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0079 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0080 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0081 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0082 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0083 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0084 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0085 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0086 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0087 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0088 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0089 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0090 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0091 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0092 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0093 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0094 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0095 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0096 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0097 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0098 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P5.0099 honest bound receipt MATCH",
-   "ok": false,
-   "detail": "det=quorum-fail: 0 distinct witness(es)"
+   "ok": true,
+   "detail": "det=MATCH"
   },
   {
    "tid": "fuzz.P6.0000 balance invariant",
@@ -5508,158 +5508,158 @@
   },
   {
    "tid": "fuzz.P6.0001 balance invariant",
-   "ok": false,
-   "detail": "bad=['Geeta', 'Sunita', 'Rani', 'Asha', 'Sita', 'Reema']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0002 balance invariant",
-   "ok": false,
-   "detail": "bad=['Laxmi', 'Sunita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0003 balance invariant",
-   "ok": false,
-   "detail": "bad=['Geeta', 'Sita', 'Kavita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0004 balance invariant",
-   "ok": false,
-   "detail": "bad=['Reema', 'Asha', 'Meera', 'Geeta', 'Laxmi', 'Sunita', 'Pooja', 'Kavita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0005 balance invariant",
-   "ok": false,
-   "detail": "bad=['Kavita', 'Reema']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0006 balance invariant",
-   "ok": false,
-   "detail": "bad=['Kavita', 'Asha', 'Sita', 'Pooja', 'Sunita', 'Laxmi', 'Geeta']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0007 balance invariant",
-   "ok": false,
-   "detail": "bad=['Laxmi', 'Reema', 'Asha', 'Kavita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0008 balance invariant",
-   "ok": false,
-   "detail": "bad=['Reema', 'Pooja', 'Geeta', 'Meera', 'Kavita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0009 balance invariant",
-   "ok": false,
-   "detail": "bad=['Asha', 'Sita', 'Sunita', 'Reema', 'Kavita', 'Pooja', 'Laxmi', 'Rani']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0010 balance invariant",
-   "ok": false,
-   "detail": "bad=['Sunita', 'Geeta', 'Rani', 'Kavita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0011 balance invariant",
-   "ok": false,
-   "detail": "bad=['Meera', 'Rani', 'Sunita', 'Asha', 'Kavita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0012 balance invariant",
-   "ok": false,
-   "detail": "bad=['Reema', 'Sunita', 'Sita', 'Pooja', 'Laxmi', 'Meera']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0013 balance invariant",
-   "ok": false,
-   "detail": "bad=['Rani', 'Sunita', 'Pooja', 'Geeta', 'Laxmi']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0014 balance invariant",
-   "ok": false,
-   "detail": "bad=['Sunita', 'Sita', 'Reema', 'Kavita', 'Laxmi']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0015 balance invariant",
-   "ok": false,
-   "detail": "bad=['Kavita', 'Meera', 'Sita', 'Reema', 'Sunita', 'Laxmi']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0016 balance invariant",
-   "ok": false,
-   "detail": "bad=['Sita', 'Asha', 'Meera', 'Reema', 'Kavita', 'Geeta']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0017 balance invariant",
-   "ok": false,
-   "detail": "bad=['Reema', 'Sunita', 'Laxmi', 'Sita', 'Kavita', 'Meera', 'Pooja']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0018 balance invariant",
-   "ok": false,
-   "detail": "bad=['Kavita', 'Sita', 'Pooja']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0019 balance invariant",
-   "ok": false,
-   "detail": "bad=['Rani', 'Pooja', 'Geeta', 'Asha', 'Reema', 'Sita', 'Kavita', 'Meera']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0020 balance invariant",
-   "ok": false,
-   "detail": "bad=['Laxmi', 'Sunita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0021 balance invariant",
-   "ok": false,
-   "detail": "bad=['Asha', 'Meera', 'Geeta', 'Rani', 'Pooja', 'Laxmi']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0022 balance invariant",
-   "ok": false,
-   "detail": "bad=['Kavita', 'Asha']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0023 balance invariant",
-   "ok": false,
-   "detail": "bad=['Rani', 'Pooja', 'Sita', 'Meera', 'Kavita', 'Reema', 'Geeta']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0024 balance invariant",
-   "ok": false,
-   "detail": "bad=['Pooja', 'Laxmi', 'Meera', 'Rani', 'Asha', 'Sunita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0025 balance invariant",
-   "ok": false,
-   "detail": "bad=['Meera', 'Sunita', 'Sita', 'Asha', 'Kavita', 'Geeta']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0026 balance invariant",
-   "ok": false,
-   "detail": "bad=['Geeta', 'Kavita', 'Asha', 'Reema', 'Pooja', 'Laxmi']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0027 balance invariant",
-   "ok": false,
-   "detail": "bad=['Asha', 'Sunita', 'Kavita', 'Geeta', 'Laxmi']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0028 balance invariant",
-   "ok": false,
-   "detail": "bad=['Meera', 'Sita', 'Geeta', 'Rani', 'Kavita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0029 balance invariant",
-   "ok": false,
-   "detail": "bad=['Geeta', 'Sita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0030 balance invariant",
-   "ok": false,
-   "detail": "bad=['Geeta', 'Meera', 'Sita', 'Sunita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0031 balance invariant",
-   "ok": false,
-   "detail": "bad=['Laxmi', 'Kavita', 'Asha', 'Meera', 'Reema', 'Sunita', 'Geeta', 'Sita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0032 balance invariant",
@@ -5668,233 +5668,233 @@
   },
   {
    "tid": "fuzz.P6.0033 balance invariant",
-   "ok": false,
-   "detail": "bad=['Reema', 'Laxmi', 'Pooja', 'Meera', 'Geeta']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0034 balance invariant",
-   "ok": false,
-   "detail": "bad=['Reema', 'Kavita', 'Pooja', 'Meera', 'Asha', 'Geeta', 'Rani']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0035 balance invariant",
-   "ok": false,
-   "detail": "bad=['Sita', 'Kavita', 'Meera', 'Sunita', 'Laxmi', 'Geeta']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0036 balance invariant",
-   "ok": false,
-   "detail": "bad=['Geeta', 'Meera', 'Asha', 'Laxmi', 'Kavita', 'Pooja']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0037 balance invariant",
-   "ok": false,
-   "detail": "bad=['Sita', 'Pooja', 'Sunita', 'Geeta', 'Rani', 'Reema']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0038 balance invariant",
-   "ok": false,
-   "detail": "bad=['Reema', 'Meera', 'Asha', 'Rani', 'Sita', 'Geeta', 'Sunita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0039 balance invariant",
-   "ok": false,
-   "detail": "bad=['Laxmi', 'Rani', 'Pooja']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0040 balance invariant",
-   "ok": false,
-   "detail": "bad=['Geeta', 'Sunita', 'Rani']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0041 balance invariant",
-   "ok": false,
-   "detail": "bad=['Sunita', 'Laxmi', 'Pooja', 'Meera', 'Reema', 'Sita', 'Asha']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0042 balance invariant",
-   "ok": false,
-   "detail": "bad=['Kavita', 'Sita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0043 balance invariant",
-   "ok": false,
-   "detail": "bad=['Pooja', 'Rani', 'Meera']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0044 balance invariant",
-   "ok": false,
-   "detail": "bad=['Geeta', 'Meera', 'Sita', 'Sunita', 'Pooja']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0045 balance invariant",
-   "ok": false,
-   "detail": "bad=['Pooja', 'Rani', 'Sita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0046 balance invariant",
-   "ok": false,
-   "detail": "bad=['Asha', 'Kavita', 'Rani', 'Laxmi', 'Reema', 'Geeta']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0047 balance invariant",
-   "ok": false,
-   "detail": "bad=['Sunita', 'Rani', 'Sita', 'Asha', 'Pooja', 'Meera', 'Kavita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0048 balance invariant",
-   "ok": false,
-   "detail": "bad=['Laxmi', 'Geeta', 'Rani', 'Sunita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0049 balance invariant",
-   "ok": false,
-   "detail": "bad=['Rani', 'Sunita', 'Kavita', 'Laxmi', 'Asha', 'Reema']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0050 balance invariant",
-   "ok": false,
-   "detail": "bad=['Meera']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0051 balance invariant",
-   "ok": false,
-   "detail": "bad=['Sunita', 'Asha', 'Meera', 'Geeta', 'Pooja']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0052 balance invariant",
-   "ok": false,
-   "detail": "bad=['Meera', 'Laxmi', 'Kavita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0053 balance invariant",
-   "ok": false,
-   "detail": "bad=['Pooja', 'Meera', 'Asha', 'Sunita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0054 balance invariant",
-   "ok": false,
-   "detail": "bad=['Sita', 'Meera', 'Asha', 'Rani']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0055 balance invariant",
-   "ok": false,
-   "detail": "bad=['Reema', 'Sita', 'Meera', 'Pooja']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0056 balance invariant",
-   "ok": false,
-   "detail": "bad=['Meera', 'Sita', 'Laxmi', 'Kavita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0057 balance invariant",
-   "ok": false,
-   "detail": "bad=['Meera', 'Geeta', 'Laxmi', 'Asha', 'Reema', 'Sunita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0058 balance invariant",
-   "ok": false,
-   "detail": "bad=['Meera', 'Laxmi', 'Geeta', 'Rani', 'Sunita', 'Asha', 'Sita', 'Pooja']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0059 balance invariant",
-   "ok": false,
-   "detail": "bad=['Geeta', 'Sita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0060 balance invariant",
-   "ok": false,
-   "detail": "bad=['Pooja', 'Rani']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0061 balance invariant",
-   "ok": false,
-   "detail": "bad=['Reema', 'Kavita', 'Sunita', 'Meera', 'Laxmi', 'Rani']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0062 balance invariant",
-   "ok": false,
-   "detail": "bad=['Asha', 'Kavita', 'Rani', 'Meera', 'Laxmi', 'Pooja', 'Sunita', 'Sita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0063 balance invariant",
-   "ok": false,
-   "detail": "bad=['Pooja', 'Laxmi', 'Geeta', 'Reema', 'Rani', 'Meera', 'Asha', 'Sita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0064 balance invariant",
-   "ok": false,
-   "detail": "bad=['Asha', 'Laxmi']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0065 balance invariant",
-   "ok": false,
-   "detail": "bad=['Sita', 'Asha', 'Pooja', 'Sunita', 'Rani', 'Kavita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0066 balance invariant",
-   "ok": false,
-   "detail": "bad=['Sita', 'Kavita', 'Laxmi', 'Meera', 'Asha', 'Reema', 'Sunita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0067 balance invariant",
-   "ok": false,
-   "detail": "bad=['Laxmi', 'Meera', 'Rani', 'Kavita', 'Pooja', 'Asha', 'Geeta', 'Reema']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0068 balance invariant",
-   "ok": false,
-   "detail": "bad=['Laxmi', 'Pooja', 'Asha']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0069 balance invariant",
-   "ok": false,
-   "detail": "bad=['Sita', 'Sunita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0070 balance invariant",
-   "ok": false,
-   "detail": "bad=['Reema', 'Geeta']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0071 balance invariant",
-   "ok": false,
-   "detail": "bad=['Asha', 'Laxmi', 'Kavita', 'Meera', 'Sita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0072 balance invariant",
-   "ok": false,
-   "detail": "bad=['Pooja', 'Geeta', 'Sita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0073 balance invariant",
-   "ok": false,
-   "detail": "bad=['Sunita', 'Sita', 'Kavita', 'Geeta']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0074 balance invariant",
-   "ok": false,
-   "detail": "bad=['Kavita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0075 balance invariant",
-   "ok": false,
-   "detail": "bad=['Pooja', 'Geeta', 'Rani', 'Meera', 'Laxmi', 'Kavita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0076 balance invariant",
-   "ok": false,
-   "detail": "bad=['Reema', 'Geeta', 'Sita', 'Sunita', 'Meera', 'Asha']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0077 balance invariant",
-   "ok": false,
-   "detail": "bad=['Sunita', 'Asha', 'Reema', 'Laxmi', 'Meera', 'Geeta', 'Kavita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0078 balance invariant",
-   "ok": false,
-   "detail": "bad=['Kavita', 'Rani', 'Asha', 'Laxmi', 'Reema']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0079 balance invariant",
@@ -5903,18 +5903,18 @@
   },
   {
    "tid": "fuzz.P6.0080 balance invariant",
-   "ok": false,
-   "detail": "bad=['Asha', 'Sita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0081 balance invariant",
-   "ok": false,
-   "detail": "bad=['Sunita', 'Rani', 'Geeta', 'Meera']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0082 balance invariant",
-   "ok": false,
-   "detail": "bad=['Sita', 'Sunita', 'Meera', 'Geeta', 'Reema', 'Asha']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0083 balance invariant",
@@ -5923,83 +5923,83 @@
   },
   {
    "tid": "fuzz.P6.0084 balance invariant",
-   "ok": false,
-   "detail": "bad=['Geeta', 'Asha']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0085 balance invariant",
-   "ok": false,
-   "detail": "bad=['Sita', 'Pooja', 'Sunita', 'Reema', 'Meera']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0086 balance invariant",
-   "ok": false,
-   "detail": "bad=['Sunita', 'Reema', 'Sita', 'Geeta', 'Kavita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0087 balance invariant",
-   "ok": false,
-   "detail": "bad=['Sita', 'Geeta', 'Reema', 'Kavita', 'Rani']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0088 balance invariant",
-   "ok": false,
-   "detail": "bad=['Rani', 'Geeta', 'Sunita', 'Reema', 'Asha', 'Pooja']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0089 balance invariant",
-   "ok": false,
-   "detail": "bad=['Laxmi', 'Sunita', 'Kavita', 'Asha']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0090 balance invariant",
-   "ok": false,
-   "detail": "bad=['Geeta', 'Meera', 'Reema', 'Kavita', 'Sita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0091 balance invariant",
-   "ok": false,
-   "detail": "bad=['Meera', 'Kavita', 'Pooja', 'Asha', 'Geeta']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0092 balance invariant",
-   "ok": false,
-   "detail": "bad=['Laxmi', 'Sunita', 'Geeta', 'Rani', 'Asha', 'Meera', 'Sita', 'Reema']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0093 balance invariant",
-   "ok": false,
-   "detail": "bad=['Sita', 'Laxmi', 'Asha', 'Pooja']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0094 balance invariant",
-   "ok": false,
-   "detail": "bad=['Rani', 'Meera', 'Sita', 'Reema']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0095 balance invariant",
-   "ok": false,
-   "detail": "bad=['Geeta', 'Laxmi', 'Reema', 'Asha', 'Kavita', 'Rani', 'Meera']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0096 balance invariant",
-   "ok": false,
-   "detail": "bad=['Rani', 'Reema', 'Meera']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0097 balance invariant",
-   "ok": false,
-   "detail": "bad=['Geeta', 'Sita', 'Rani', 'Pooja', 'Meera']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0098 balance invariant",
-   "ok": false,
-   "detail": "bad=['Pooja', 'Kavita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P6.0099 balance invariant",
-   "ok": false,
-   "detail": "bad=['Reema', 'Sunita', 'Asha', 'Rani', 'Laxmi', 'Meera', 'Sita']"
+   "ok": true,
+   "detail": "bad=[]"
   },
   {
    "tid": "fuzz.P7.0000 export/load roundtrip equal",

@@ -25,7 +25,7 @@ def random_chain(max_events=40, meetings=3, group="G-FUZZ"):
             r = c.close_meeting("M%02d" % mid, "2026-08-%02dT10:00:00" % (mid % 28 + 1))
             for w in rng.sample(MEMBERS, 2):
                 pass_words = "pass-" + w
-                r["witnesses"].append(sign({"root": r["root_hash"], "meeting": "M%02d" % mid}, pass_words, w))
+                r["witnesses"].append({"witness": w, "sig": sign({"root": r["root_hash"], "meeting": "M%02d" % mid}, pass_words, w)})
             mid += 1
             meetings -= 1
             if meetings == 0:
@@ -37,7 +37,7 @@ def random_chain(max_events=40, meetings=3, group="G-FUZZ"):
     if meetings and (not c.events or c.events[-1]["type"] != "MEETING-CLOSE"):
         r = c.close_meeting("M%02d" % mid, "2026-08-28T10:00:00")
         for w in rng.sample(MEMBERS, 2):
-            r["witnesses"].append(sign({"root": r["root_hash"], "meeting": "M%02d" % mid}, "pass-" + w, w))
+            r["witnesses"].append({"witness": w, "sig": sign({"root": r["root_hash"], "meeting": "M%02d" % mid}, "pass-" + w, w)})
     return c
 
 def full_recompute(c):
@@ -174,7 +174,7 @@ def run():
     for i in range(ITERS):
         c = random_chain()
         b = balances(c)
-        bad = [m for m, v in b.items() if v["loaned_paise"] - v["repaid_paise"] != v["outstanding_paise"]]
+        bad = [m for m, v in b.items() if v["outstanding_paise"] != max(0, v["loaned_paise"] - v["repaid_paise"] - v["corrected_paise"]) or v.get("over_repaid_paise", 0) != max(0, v["repaid_paise"] + v["corrected_paise"] - v["loaned_paise"])]
         t("fuzz.P6.%04d balance invariant" % i, not bad, "bad=%s" % bad)
     # P7: export -> load roundtrip byte-identical
     for i in range(ITERS):

@@ -16,7 +16,7 @@ os.makedirs(OUT, exist_ok=True)
 
 SUITES = [
     ("attacks.py", "attacks.txt", False),           # 25 findings, EXPLOITED is expected
-    ("stress_tests.py", "stress.txt", True),        # 12 robustness probes
+    ("stress_tests.py", "stress.txt", True),        # 12 hardness probes
     ("benchmarks.py", "benchmarks.txt", False),     # throughput + scaling
     ("attack_fuzz.py", "fuzz.txt", True),           # 10k+ seeded fuzz probes
     ("benchmark_matrix.py", "bench_matrix.txt", False),  # 11k+ timed samples

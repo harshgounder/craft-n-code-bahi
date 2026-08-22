@@ -321,7 +321,7 @@ def run():
     t("chain.det.002 h() deterministic", hA == hB)
     t("chain.det.003 same input different group differs", h("GENESIS", "A") != h("GENESIS", "B"))
 
-    # ---------- load/save robustness ----------
+    # ---------- load/save hardness ----------
     d = tempfile.mkdtemp(prefix="bahi-attack-")
     path = os.path.join(d, "chain.json")
     c9, _ = make_chain()

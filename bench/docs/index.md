@@ -1,4 +1,4 @@
-# Master Index — BAHI Bench / Stress / Attack
+# Master Index - BAHI Bench / Stress / Attack
 
 This is the index for the `bench/` deliverable. Everything below is real output
 produced on this machine against the frozen snapshot (pinned in
@@ -18,7 +18,7 @@ produced on this machine against the frozen snapshot (pinned in
 | Suite | File | What it does | Status |
 |---|---|---|---|
 | Adversarial audit | [`../attacks.py`](../attacks.py) | 25 findings, each a live exploit | see REPORT |
-| Stress tests | [`../stress_tests.py`](../stress_tests.py) | 12 robustness probes (scale, unicode, extremes, determinism) | 12/12 pass |
+| Stress tests | [`../stress_tests.py`](../stress_tests.py) | 12 hardness probes (scale, unicode, extremes, determinism) | 12/12 pass |
 | Benchmarks | [`../benchmarks.py`](../benchmarks.py) | throughput + O(N) scaling + memory | see REPORT §2 |
 | Attack fuzz | [`../attack_fuzz.py`](../attack_fuzz.py) | 6 seeded suites: CSV (1200), XSS (1200), mutation (1200), property (4500), receipt (1200), type (1000) | 10,424/10,424 pass |
 | Benchmark matrix | [`../benchmark_matrix.py`](../benchmark_matrix.py) | microbench (11 ops × 1000) + scaling sweep (12 sizes × 5 ops) | 11,180 timed samples |

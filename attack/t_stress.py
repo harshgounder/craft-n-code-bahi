@@ -50,9 +50,8 @@ def run():
     t("stress.conc.001 8x50 concurrent entries all recorded (serialized, no lost updates)",
       n1 == n0 + 400 and not errs, "n0=%d n1=%d errs=%d" % (n0, n1, len(errs)))
     seqs = [e["seq"] for e in st()["events"]]
-    t("VULN.stress.conc.002 server's own seq allocator collides: preseeded seq 8 duplicated by first live entry",
-      len(set(seqs)) != len(seqs) and seqs.count(8) == 2,
-      "seq = len(non-close events)+1 is COUNT-based: build seeds M07 events seq 3..8, so the FIRST live entry also gets seq 8 (count 7+1=8). Two different events share seq 8 every meeting cycle; seqs are not unique identifiers")
+    t("SAFE.stress.conc.002 seq allocator unique after 400 entries",
+      len(set(seqs)) == len(seqs), "len(events)+1 allocation keeps seqs unique; no collision with seeded seq 8")
     t("stress.conc.003 chain verifies after hammer", st() and json.loads(do("/api/export")[1])["report"]["chain_ok"])
 
     # ---- 10k entries -> close -> bound receipt bloat ----

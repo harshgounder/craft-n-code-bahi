@@ -450,6 +450,7 @@ function renderTiles(){
   document.querySelectorAll(".tile").forEach(el=>el.onclick=()=>{selType=TYPES[+el.dataset.i];renderTiles();$("repeat").textContent=phrase();});
   $("repeat").textContent=phrase();
 }
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 let firstRun=true;
 let __seen={};
 async function refresh(){
@@ -467,15 +468,15 @@ async function refresh(){
     const root=String(r.root);
     $("receiptbox").innerHTML=
       "<div><span class='lbl'>Receipt</span>v1</div>"+
-      "<div><span class='lbl'>Group</span>"+r.group+"</div>"+
-      "<div><span class='lbl'>Meeting</span>"+r.meeting+"</div>"+
-      "<div><span class='lbl'>Member</span>"+r.member+"</div>"+
+      "<div><span class='lbl'>Group</span>"+esc(r.group)+"</div>"+
+      "<div><span class='lbl'>Meeting</span>"+esc(r.meeting)+"</div>"+
+      "<div><span class='lbl'>Member</span>"+esc(r.member)+"</div>"+
       "<div><span class='lbl'>Root</span>"+root.slice(0,8)+"-"+root.slice(8,16)+"-"+root.slice(16,24)+"-"+root.slice(24,32)+"…</div>"+
-      "<div><span class='lbl'>Witness</span>"+r.witnesses.map(w=>String(w.w||w).slice(0,10)).join(" + ")+"</div>";
+      "<div><span class='lbl'>Witness</span>"+r.witnesses.map(w=>esc(String(w.w||w)).slice(0,10)).join(" + ")+"</div>";
     const sigs=r.witnesses.map(w=>w.w||w);
     const wits=r.witnesses.map(w=>String(w.w||w).replace("pass-","").slice(0,12));
     const lineItems=r.member_events&&r.member_events.length?(" It proves her <b>"+r.member_events.length+"</b> line item(s): seq "+r.member_events.map(m=>m.seq).join(", ")+"."):"";
-    $("rcptplain").innerHTML="<b>"+r.member+"</b> holds a receipt for meeting <b>"+r.meeting+"</b> in group <b>"+r.group+"</b>. Two witnesses signed the close: <b>"+wits.join(" and ")+"</b>."+lineItems+" If anyone edits the books later, this receipt will name the exact event.";
+    $("rcptplain").innerHTML="<b>"+esc(r.member)+"</b> holds a receipt for meeting <b>"+esc(r.meeting)+"</b> in group <b>"+esc(r.group)+"</b>. Two witnesses signed the close: <b>"+wits.join(" and ")+"</b>."+lineItems+" If anyone edits the books later, this receipt will name the exact event.";
     $("wits").innerHTML=wits.map((n,i)=>"<span class='wit' title='witness signature'><i>W"+(i+1)+"</i>"+n.slice(0,6)+"…</span>").join("");
     $("vstamp").textContent=s.verdict?"VERIFIED":"FORKED";
     $("vstamp").style.borderColor=s.verdict?"var(--green)":"var(--red)";
@@ -505,7 +506,7 @@ async function refresh(){
   $("tally").innerHTML="<b>"+liveCount+"</b> events · state: <b>"+(s.verdict?"MATCH":"FORK")+"</b> · meetings closed: "+closedMeetings+(r&&r.meeting?" · receipt for "+r.meeting:"");
   $("chainbody").innerHTML=s.events.map((e,i)=>{
     const isClose=e.type==="MEETING-CLOSE", isBad=e.type!=="MEETING-CLOSE"&&s.verdict===false&&i===(s.detail.match(/EVENT-([0-9]+)/)||[])[1]-1;
-    return "<tr id='row-"+e.seq+"' class='"+(isClose?"meet":isBad?"bad":"")+"'><td>"+e.seq+"</td><td>"+(isClose?"MEETING CLOSE":e.type)+"</td><td>"+e.member+"</td><td>"+(isClose?"-":(isBad?"<b>Rs "+(e.amount_paise/100).toFixed(0)+"</b> <span style='font-family:var(--mono);font-size:9.5px;text-transform:uppercase;border:1px solid currentColor;border-radius:3px;padding:0 4px'>altered</span>":"Rs "+(e.amount_paise/100).toFixed(0)))+"</td><td class='mono' title='"+e.ts+"'>"+e.ts+"</td><td class='mono' title='full hash: "+e.hash+"'>"+String(e.hash).slice(0,14)+"…</td></tr>";
+    return "<tr id='row-"+e.seq+"' class='"+(isClose?"meet":isBad?"bad":"")+"'><td>"+e.seq+"</td><td>"+(isClose?"MEETING CLOSE":esc(e.type))+"</td><td>"+esc(e.member)+"</td><td>"+(isClose?"-":(isBad?"<b>Rs "+(e.amount_paise/100).toFixed(0)+"</b> <span style='font-family:var(--mono);font-size:9.5px;text-transform:uppercase;border:1px solid currentColor;border-radius:3px;padding:0 4px'>altered</span>":"Rs "+(e.amount_paise/100).toFixed(0)))+"</td><td class='mono' title='"+esc(e.ts)+"'>"+esc(e.ts)+"</td><td class='mono' title='full hash: "+esc(e.hash)+"'>"+String(e.hash).slice(0,14)+"…</td></tr>";
   }).join("");
 
   // loans
@@ -513,7 +514,7 @@ async function refresh(){
   $("loans").innerHTML=bs.length?bs.map(b=>{
     const pct=Math.min(100,Math.round(100*(b.repaid_paise/(b.loaned_paise||1))));
     const av=b.member.slice(0,2).toUpperCase();
-    return "<div class='loan'><div class='av'>"+av+"</div><div><div class='nm'><span>"+b.member+"</span><span>"+(b.outstanding_paise>0?"<span class='due'>Rs "+(b.outstanding_paise/100).toFixed(0)+" due</span>":(b.overpaid_paise||0)>0?"<span class='tag'>overpaid Rs "+(b.overpaid_paise/100).toFixed(0)+"</span>":"<span class='tag'>clear</span>")+"</span></div><div class='bar'><i style='width:"+pct+"%'></i></div><div class='meta'>loaned Rs "+(b.loaned_paise/100).toFixed(0)+" · repaid Rs "+(b.repaid_paise/100).toFixed(0)+" · "+pct+"% repaid</div></div></div>";
+    return "<div class='loan'><div class='av'>"+av+"</div><div><div class='nm'><span>"+esc(b.member)+"</span><span>"+(b.outstanding_paise>0?"<span class='due'>Rs "+(b.outstanding_paise/100).toFixed(0)+" due</span>":(b.overpaid_paise||0)>0?"<span class='tag'>overpaid Rs "+(b.overpaid_paise/100).toFixed(0)+"</span>":"<span class='tag'>clear</span>")+"</span></div><div class='bar'><i style='width:"+pct+"%'></i></div><div class='meta'>loaned Rs "+(b.loaned_paise/100).toFixed(0)+" · repaid Rs "+(b.repaid_paise/100).toFixed(0)+" · "+pct+"% repaid</div></div></div>";
   }).join(""):"<div class='sub'>no loans yet</div>";
   // hints
   const ex=await (await fetch("/api/export")).json();

@@ -8,7 +8,7 @@ Conventions:
     reproducible. VULN.ok=True means the flaw is confirmed (finding).
   - tid prefixed "SAFE." -> the test EXPECTS the defense to hold.
     SAFE.ok=False means a real security bug (exploit succeeded).
-  - Everything else is protocol/robustness behavior.
+  - Everything else is protocol/hardness behavior.
 Pure stdlib. Exit 0 = all expectations met.
 """
 import json, sys, time

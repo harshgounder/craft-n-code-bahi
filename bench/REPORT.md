@@ -1,6 +1,6 @@
-# BAHI — Benchmarks, Stress Tests & Adversarial Audit
+# BAHI - Benchmarks, Stress Tests & Adversarial Audit
 
-Audit + performance + robustness battery for the BAHI ("witnessed ledger")
+Audit + performance + hardness battery for the BAHI ("witnessed ledger")
 prototype, written for the Craft N Code 2026 Round-1 project (PS-17 / SHG
 digital ledger).
 
@@ -40,7 +40,7 @@ digital ledger).
 > | `tests.py` | **50/50 pass** (incl. 9 Ed25519 cases) |
 > | Non-code decisions | **33 items** documented in `../docs/PRODUCT-DECISIONS.md` |
 
-- **Audited snapshot:** `d8e7511` (`SNAPSHOT_SHA.txt`) — source frozen in `src/`.
+- **Audited snapshot:** `d8e7511` (`SNAPSHOT_SHA.txt`) - source frozen in `src/`.
   Note: the upstream repo is under active, concurrent development; several
   findings below were already fixed by the time this report was written.
 - **Scope:** `chain.py`, `witness.py`, `loans.py`, `exporter.py` (the truth +
@@ -52,7 +52,7 @@ Run everything:
 ```bash
 cd bench
 python attacks.py        # 25 findings, severity-ranked
-python stress_tests.py   # 12 robustness probes
+python stress_tests.py   # 12 hardness probes
 python benchmarks.py     # throughput + scaling
 ```
 
@@ -64,8 +64,8 @@ numbers against the same code.
 
 ## 1. Verdict in one paragraph
 
-The core claim — *"edit any past event and every later hash breaks; recompute
-from genesis and you detect the fork"* — is **sound**. All 12 upstream protocol
+The core claim - *"edit any past event and every later hash breaks; recompute
+from genesis and you detect the fork"* - is **sound**. All 12 upstream protocol
 tests pass, and every genuine tamper (edit, delete, reorder, root swap, witness
 removal, ghost meeting, cross-group, corrupt file) is caught. The prototype
 survives 1M-event chains, unicode names, 2^63 amounts, 10k meetings, and 10k
@@ -107,7 +107,7 @@ Derived views:
 
 IO: `save(100k)` 1.11 s → 31.8 MB JSON (+ `.bak`); `load(100k)` 0.17 s;
 `verify_receipt` on a 100k-event chain 0.39 s. Memory: a 500k-event chain peaks
-at ~254 MB (~500 bytes/event — dominated by per-event dict overhead).
+at ~254 MB (~500 bytes/event - dominated by per-event dict overhead).
 
 ### Performance finding: `hint_flags` is still O(meetings × events)
 
@@ -141,14 +141,14 @@ meeting), then evaluate rules per bucket.
 | S6 | 100k-char member name | PASS |
 | S7 | 10,000 meetings | PASS |
 | S8 | 10,000-witness receipt | PASS |
-| S9 | Pathological types (str seq / bool amount) | PASS (still **accepted** — see A21) |
+| S9 | Pathological types (str seq / bool amount) | PASS (still **accepted** - see A21) |
 | S10 | Determinism (5 runs) | PASS |
 | S11 | verify() idempotency after tamper | PASS |
 | S12 | hint_flags at scale | PASS |
 
 The prototype is remarkably crash-resistant. The one stress result to read
 carefully is S9: malformed *types* don't crash the chain (they just flow
-through), but they *do* crash the audit layer — see N2.
+through), but they *do* crash the audit layer - see N2.
 
 ---
 
@@ -157,18 +157,18 @@ through), but they *do* crash the audit layer — see N2.
 Legend: **FIXED** = closed by v1.2+ hardening · **STILL OPEN** = exploitable ·
 **NEW** = found in the current code.
 
-### FIXED (8) — the concurrent hardening worked
+### FIXED (8) - the concurrent hardening worked
 
 | ID | Sev | Title |
 |---|---|---|
-| A01 | CRITICAL | Hash domain-separation collision — `h()` now appends a `\x1f` separator per field |
-| A03 | CRITICAL | Cross-group receipt confusion — `verify_receipt` binds `group` |
-| A06 | HIGH | CSV injection — `csv.writer` quotes comma/quote/newline |
-| A07 | HIGH | hint_flags cross-meeting misattribution — per-meeting `root_seq` bucketing |
-| A13 | MEDIUM | duplicate_identity fired at ==2 — now `>=3` (advisory) |
-| A14 | MEDIUM | `verify_receipt` ignored root_seq/member — now binds both |
-| A15 | MEDIUM | `load()` had no validation — now returns structured "corrupt" state |
-| A22 | LOW | save() canonicalization — verified deterministic (defense held) |
+| A01 | CRITICAL | Hash domain-separation collision - `h()` now appends a `\x1f` separator per field |
+| A03 | CRITICAL | Cross-group receipt confusion - `verify_receipt` binds `group` |
+| A06 | HIGH | CSV injection - `csv.writer` quotes comma/quote/newline |
+| A07 | HIGH | hint_flags cross-meeting misattribution - per-meeting `root_seq` bucketing |
+| A13 | MEDIUM | duplicate_identity fired at ==2 - now `>=3` (advisory) |
+| A14 | MEDIUM | `verify_receipt` ignored root_seq/member - now binds both |
+| A15 | MEDIUM | `load()` had no validation - now returns structured "corrupt" state |
+| A22 | LOW | save() canonicalization - verified deterministic (defense held) |
 
 ### STILL OPEN (12)
 
@@ -187,7 +187,7 @@ Legend: **FIXED** = closed by v1.2+ hardening · **STILL OPEN** = exploitable ·
 | A20 | LOW | No nonce → identical consecutive events accepted | |
 | A21 | LOW | Weak typing: str seq / bool amount | |
 
-### NEW (5) — found in the current code
+### NEW (5) - found in the current code
 
 | ID | Sev | Title | One-line |
 |---|---|---|---|
@@ -199,13 +199,13 @@ Legend: **FIXED** = closed by v1.2+ hardening · **STILL OPEN** = exploitable ·
 
 ### Top three fixes to prioritize
 
-1. **A02 (CRITICAL)** — verify each witness signature with
+1. **A02 (CRITICAL)** - verify each witness signature with
    `witness.verify({"root":..,"meeting":..}, sig, passphrase, witness)` instead
    of `set(sigs_then).issubset(set(sigs_now))`. As written, "2 witnesses signed"
    is a statement the bookkeeper can fabricate.
-2. **A04 (HIGH)** — deep-copy the witness list (and root fields) in
+2. **A04 (HIGH)** - deep-copy the witness list (and root fields) in
    `receipt_payload` so a member's held receipt is an immutable snapshot.
-3. **N2 + A10 (MEDIUM)** — coerce/validate `seq` to `int` and enforce
+3. **N2 + A10 (MEDIUM)** - coerce/validate `seq` to `int` and enforce
    monotonicity in `add_event`; this single change also removes the
    `hint_flags` crash and the bucketing corruption.
 

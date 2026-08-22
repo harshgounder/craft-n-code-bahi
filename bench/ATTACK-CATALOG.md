@@ -1,13 +1,13 @@
-# BAHI — Comprehensive Attack Catalog (Round 3)
+# BAHI - Comprehensive Attack Catalog (Round 3)
 
 A full-spectrum threat catalog for the BAHI SHG ledger prototype, written after
 PR #9 (pixie-chan) and PR #10 (sujalsshukla) were reconciled. Each entry is
 classified by **evidence level**:
 
-- **VERIFIED** — reproduced by an executed probe against the current code
+- **VERIFIED** - reproduced by an executed probe against the current code
   (`round3_probe.py`, `round3b_probe.py`).
-- **INSPECTION** — confirmed by reading the code path (no probe needed).
-- **THEORETICAL** — a known attack class, assessed for applicability; not
+- **INSPECTION** - confirmed by reading the code path (no probe needed).
+- **THEORETICAL** - a known attack class, assessed for applicability; not
   reproduced because it is out of the prototype's scope or requires an
   adversary capability the prototype doesn't yet model.
 
@@ -25,8 +25,8 @@ not just the demo.
 | C3 | Witness key reuse across groups/meetings | THEORETICAL | MED | Same passphrase reused → one compromise exposes every meeting. Add per-meeting salt. |
 | C4 | Length-extension on `h()` | THEORETICAL | LOW | SHA-256 is Merkle–Damgård, but `h()` hashes a delimited field string and outputs hexdigest; the chain structure (fixed fields + `\x1f`) leaves no room to append a valid event. Checked, not exploitable. |
 | C5 | Delimiter injection (`\x1f`) in member names | THEORETICAL | LOW | A01 fixed the digit-absorption collision; a member name literally containing `\x1f` is not sanitized but no collision was constructible. |
-| C6 | Majority rewrite (full file control) | INSPECTION | HIGH | Documented boundary: a bookkeeper with the file can re-link everything. Detection is only via the member-held receipt. Not a bug — the threat model. |
-| C7 | Genesis substitution / group rename | VERIFIED(fixed) | — | Now caught: `group_id` is folded into every hash + genesis anchor (N1 in PR #10). |
+| C6 | Majority rewrite (full file control) | INSPECTION | HIGH | Documented boundary: a bookkeeper with the file can re-link everything. Detection is only via the member-held receipt. Not a bug - the threat model. |
+| C7 | Genesis substitution / group rename | VERIFIED(fixed) | - | Now caught: `group_id` is folded into every hash + genesis anchor (N1 in PR #10). |
 | C8 | Cross-meeting event transplant | VERIFIED | MED | Move an event from M01 to M02 and re-link; `verify()` passes if seqs stay valid. Audit layer sees it only as a `duplicate_identity` hint, not a transplant. |
 | C9 | Meeting replay (duplicate a whole meeting) | VERIFIED | LOW | Copy M01's (member,amount) set into M02; chain accepts (roots differ). Detected only as dup-id. |
 | C10 | Timestamp forgery (ts not date-validated) | INSPECTION | LOW | `ts` is any non-empty string, hashed but never parsed; backdating is possible and invisible. |
@@ -72,12 +72,12 @@ not just the demo.
 
 | # | Attack | Evidence | Sev | Notes & fix |
 |---|---|---|---|---|
-| R1 | **Legacy receipt weak binding** | VERIFIED | MED | A receipt without `member_events` only checks "member exists" — it proves nothing about *which* lines belong to the member. `receipt_payload(chain=…)` always builds `member_events`; reject legacy receipts or require member_events. |
+| R1 | **Legacy receipt weak binding** | VERIFIED | MED | A receipt without `member_events` only checks "member exists" - it proves nothing about *which* lines belong to the member. `receipt_payload(chain=…)` always builds `member_events`; reject legacy receipts or require member_events. |
 | R2 | Receipt forgery (member fabricates) | THEORETICAL | MED | Member invents a receipt; currently the receipt carries no issuer signature, so the auditor can't tell who issued it. |
 | R3 | Receipt loss/theft | THEORETICAL | LOW | The member holds the only copy; no duplicate/escrow mechanism. |
 | R4 | Double-issue (same receipt to two members) | THEORETICAL | LOW | No nonce/issue-counter binds a receipt to a single issuance. |
-| R5 | Receipt replay after chain advance | VERIFIED(fixed) | — | Caught: `events-after-close` (terminality). |
-| R6 | Receipt root vs stale metadata (close-swap) | VERIFIED(fixed) | — | Caught: close-hash recompute tie (PR9). |
+| R5 | Receipt replay after chain advance | VERIFIED(fixed) | - | Caught: `events-after-close` (terminality). |
+| R6 | Receipt root vs stale metadata (close-swap) | VERIFIED(fixed) | - | Caught: close-hash recompute tie (PR9). |
 
 ---
 
@@ -91,8 +91,8 @@ not just the demo.
 | D4 | Float precision in `format_rupees` | INSPECTION | LOW | `paise/100.0` loses precision for huge amounts; use integer paise + manual formatting. |
 | D5 | Huge-integer / huge-string DoS | THEORETICAL | LOW | No bound on amount/member length (100k-char name verifies fine). |
 | D6 | Deeply-nested JSON on load | THEORETICAL | LOW | `json.load` recursion limit protects; error is not surfaced as a clean corrupt verdict. |
-| D7 | Non-deterministic `set` iteration | INSPECTION | — | Checked: `set()` is used only for `issubset`, never iterated; output is deterministic. |
-| D8 | `json.dumps` without `sort_keys` in `save()` | INSPECTION | — | Deterministic because dict insertion order is fixed; a benign non-issue. |
+| D7 | Non-deterministic `set` iteration | INSPECTION | - | Checked: `set()` is used only for `issubset`, never iterated; output is deterministic. |
+| D8 | `json.dumps` without `sort_keys` in `save()` | INSPECTION | - | Deterministic because dict insertion order is fixed; a benign non-issue. |
 
 ---
 
@@ -100,7 +100,7 @@ not just the demo.
 
 | # | Attack | Evidence | Sev | Notes & fix |
 |---|---|---|---|---|
-| S1 | Malicious dependency | THEORETICAL | LOW | Pure stdlib today; adding `cryptography`/`pynacl` for asymmetric keys introduces the supply-chain surface — pin + hash-verify. |
+| S1 | Malicious dependency | THEORETICAL | LOW | Pure stdlib today; adding `cryptography`/`pynacl` for asymmetric keys introduces the supply-chain surface - pin + hash-verify. |
 | S2 | Backdoored build artifact | THEORETICAL | LOW | No reproducible-build / SBOM. |
 | S3 | Secrets in repo / logs | INSPECTION | LOW | Witness passphrases hardcoded; log statements don't leak keys today but the pattern is fragile. |
 | S4 | Insecure transport | THEORETICAL | MED | HTTP only; if ever deployed beyond localhost, MITM can read/write the chain. Use TLS + client certs. |
