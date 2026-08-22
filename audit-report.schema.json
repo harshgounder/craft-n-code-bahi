@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BAHI audit report",
+  "description": "Federation audit view of an SHG chain: status, meeting roots with witness seals, deterministic hint flags, and a CSV export of all events. Verdicts are recomputed from the chain bytes; hints are advisory, never accusations.",
+  "type": "object",
+  "required": ["group", "chain_ok", "first_bad_seq", "why", "meetings", "hints"],
+  "properties": {
+    "group": { "type": "string", "description": "SHG identifier, must match the chain file's group" },
+    "chain_ok": { "type": "boolean", "description": "true iff every event hash recomputes and every meeting root matches its receipt" },
+    "first_bad_seq": { "type": ["integer", "null"], "description": "seq of the first event that breaks the hash chain, null when chain_ok" },
+    "why": { "type": "string", "description": "machine verdict: MATCH, FORK-AT-EVENT-n, FORK-AT-MEETING-n, meeting-root-missing, quorum-fail, group-mismatch, corrupt-chain" },
+    "meetings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "root_hash", "root_seq", "witnesses"],
+        "properties": {
+          "id": { "type": "string" },
+          "root_hash": { "type": "string", "minLength": 64, "maxLength": 64 },
+          "root_seq": { "type": "integer" },
+          "witnesses": { "type": "array", "items": { "type": "string" }, "description": "structural witness seals over the meeting root" }
+        }
+      }
+    },
+    "hints": {
+      "type": "array",
+      "description": "advisory flags, deterministic rules, never ML and never final",
+      "items": {
+        "type": "object",
+        "required": ["hint", "meeting", "evidence"],
+        "properties": {
+          "hint": { "enum": ["arithmetic_mismatch", "missing_witness", "duplicate_identity", "reversal_burst", "concentrated_lending", "corrupt_chain"] },
+          "meeting": { "type": "string" },
+          "evidence": { "type": "string", "description": "the rows that triggered the rule" }
+        }
+      }
+    }
+  }
+}

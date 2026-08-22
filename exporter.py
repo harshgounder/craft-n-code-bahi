@@ -51,21 +51,23 @@ def hint_flags(chain):
         for e in evs:
             key = (e["member"], e["amount_paise"])
             paired[key] = paired.get(key, 0) + 1
-            if paired[key] == 2 and not any(f["hint"] == "duplicate_identity" and f["meeting"] == mid
+            # advisory only: 2 identical contributions is a normal SHG
+            # pattern; fire only on 3+ repeats or on loan/repayment pairs
+            if paired[key] >= 3 and not any(f["hint"] == "duplicate_identity" and f["meeting"] == mid
                                             and key[0] in f["evidence"] for f in flags):
                 flags.append({"hint": "duplicate_identity", "meeting": mid,
-                              "evidence": "%s Rs %d twice" % (e["member"], e["amount_paise"] // 100)})
-        corrections = [e for e in evs if e["type"] == "correction"]
-        if len(corrections) >= 4:
-            flags.append({"hint": "reversal_burst", "meeting": mid,
-                          "evidence": "%d correction events" % len(corrections)})
+                              "evidence": "%s Rs %d three or more times" % (e["member"], e["amount_paise"] // 100)})
         loans = [e for e in evs if e["type"] == "loan"]
-        if loans:
+        if len(loans) >= 2:
             top = max(loans, key=lambda e: e["amount_paise"])
             total = sum(e["amount_paise"] for e in loans)
             if total > 0 and top["amount_paise"] * 2 > total:
                 flags.append({"hint": "concentrated_lending", "meeting": mid,
                               "evidence": "%s took %d%% of loans" % (top["member"], round(100 * top["amount_paise"] / total))})
+        corrections = [e for e in evs if e["type"] == "correction"]
+        if len(corrections) >= 4:
+            flags.append({"hint": "reversal_burst", "meeting": mid,
+                          "evidence": "%d correction events" % len(corrections)})
         repaid = sum(e["amount_paise"] for e in evs if e["type"] == "repayment")
         loaned = sum(e["amount_paise"] for e in evs if e["type"] == "loan")
         if repaid > loaned:
