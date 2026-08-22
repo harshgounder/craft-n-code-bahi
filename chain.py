@@ -113,8 +113,30 @@ class BahiChain:
         return {"group": self.group_id, "events": self.events, "roots": self.roots}
 
     def save(self, path):
-        with open(path, "w") as f:
-            json.dump(self.export(), f, indent=1)
+        """Durable atomic write (backend-wave report): temp file in the same
+        dir, flush + fsync, atomic os.replace, plus a numbered .bak copy.
+        A crash mid-write can never leave a half-written chain file."""
+        import os, tempfile
+        data = json.dumps(self.export(), indent=1)
+        d = os.path.dirname(os.path.abspath(path))
+        fd, tmp = tempfile.mkstemp(prefix=".bahi-", suffix=".tmp", dir=d)
+        try:
+            with os.fdopen(fd, "w") as f:
+                f.write(data)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, path)
+            try:
+                with open(path + ".bak", "w") as b:
+                    b.write(data)
+            except OSError:
+                pass  # backup is best-effort
+        except BaseException:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
 
     @staticmethod
     def load(path):

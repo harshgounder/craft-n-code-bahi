@@ -73,6 +73,17 @@ class Handler(BaseHTTPRequestHandler):
         self.do_GET()
 
     def do_GET(self):
+        host = self.headers.get("Host", "")
+        origin = self.headers.get("Origin", "")
+        # localhost scope limit is NOT authentication (hardening report):
+        # reject foreign Host and any Origin so a remote page cannot forge
+        # state-changing requests against the demo UI (DNS rebinding, CSRF)
+        if not host.startswith("127.0.0.1") and not host.startswith("localhost"):
+            self.send_error(403, "foreign host rejected")
+            return
+        if origin and "127.0.0.1" not in origin and "localhost" not in origin:
+            self.send_error(403, "foreign origin rejected")
+            return
         path = self.path.split("?", 1)[0]
         qs = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
         if path == "/api/state":
@@ -211,7 +222,7 @@ function entry(type,paise){
 function closeMeeting(){
  fetch('/api/close').then(r=>r.json()).then(s=>{
   var bx=document.getElementById('receiptbox');
-  bx.textContent='receipt v1 | group G-RAJ-042 | meeting '+s.meeting+' | member Sita | witnesses 2 | signed root';
+  bx.textContent='receipt | group G-RAJ-042 | meeting '+s.meeting+' | member Sita | witnesses 2 | closing balance verified | hash '+(''+s.root_hash).slice(0,16)+' | code '+(''+s.root_hash).slice(0,8);
   refresh();
  });
 }
@@ -227,8 +238,8 @@ function exportView(){
 }
 function show(s){
  var v=document.getElementById('verdict');
- if(s.verdict){v.className='verdict ok';v.textContent='VERDICT: MATCH - receipt and books agree';}
- else{v.className='verdict bad';v.textContent='VERDICT: '+s.detail+' - receipt FAILS';}
+ if(s.verdict){v.className='verdict ok';v.textContent='VERDICT: MATCH - receipt and books agree (green = Verified)';}
+ else{v.className='verdict bad';v.textContent='VERDICT: '+s.detail+' - receipt FAILS (red = Mismatch)';}
  var tbl=document.getElementById('loanstable'),h='<tr><th>Member</th><th>Loaned</th><th>Repaid</th><th>Outstanding</th></tr>';
  Object.values(s.balances).forEach(b=>{h+='<tr><td>'+b.member+'</td><td>Rs '+(b.loaned_paise/100)+'</td><td>Rs '+(b.repaid_paise/100)+'</td><td><b>Rs '+(b.outstanding_paise/100)+'</b></td></tr>';});
  tbl.innerHTML=h;

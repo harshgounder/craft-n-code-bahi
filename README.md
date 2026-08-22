@@ -15,7 +15,9 @@ recorder changes Rs 100 to Rs 10, nobody notices until the corpus is gone.
 - Meeting close: 2+ witness keys sign the meeting root (quorum)
 - Member receipt: root + meeting + member + witness signatures
 - Offline verification: MATCH, or FORK-AT-EVENT-n with the exact divergence
-- Pure Python stdlib. No network. No server. No ML in the truth path.
+- Pure Python stdlib. Offline: no cloud, no SIM, no internet. The demo
+  UI is a local web page served by http.server on 127.0.0.1 only. No ML
+  in the truth path (deterministic hash math decides).
 - AI assists only (voice entry, hint flags); MATCH/FORK is always math.
 
 ## The demonstrated cases (verified sources)
