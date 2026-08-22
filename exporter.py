@@ -1,36 +1,58 @@
 #!/usr/bin/env python3
 """exporter.py - BAHI federation audit view: hint rules (deterministic, no ML)
-and standardized export (JSON + CSV). Pure stdlib."""
-from chain import BahiChain
+and standardized export (JSON + CSV). Pure stdlib.
+
+v1.2 fixes from bug-hunter pass 1:
+- hints scoped PER MEETING (meeting boundaries come from the chain roots
+  structure: each root knows its root_seq, events between previous root and
+  this root belong to this meeting)
+- arithmetic_mismatch implemented (loan/repayment balance check)
+- CSV quoted so member names with commas do not break rows
+- never raises on corrupt chains (audit_status from chain.py)
+"""
+import csv, io
+from chain import MIN_WITNESSES, audit_status
 
 HINT_RULES = [
-    "arithmetic_mismatch",   # loan - repayment != stated balance path
-    "missing_witness",       # meeting close signed by fewer than 2 witnesses
-    "duplicate_identity",    # same member + same amount twice in one meeting
-    "reversal_burst",        # >= 4 correction events in one meeting
-    "concentrated_lending",  # one member > 50% of meeting loan volume
+    "arithmetic_mismatch",
+    "missing_witness",
+    "duplicate_identity",
+    "reversal_burst",
+    "concentrated_lending",
 ]
 
+
+def _meetings_with_events(chain):
+    """returns list of (meeting_id, [events]) where every non-close event is
+    attributed to exactly one meeting by root_seq ranges."""
+    root_seqs = sorted((m["root_seq"], mid) for mid, m in chain.roots.items()
+                       if m.get("root_seq") is not None)
+    out = []
+    events = [e for e in chain.events if e["type"] != "MEETING-CLOSE"]
+    for i, (seq, mid) in enumerate(root_seqs):
+        lo = 0 if i == 0 else root_seqs[i - 1][0] + 1
+        hi = seq
+        out.append((mid, [e for e in events if lo <= e["seq"] <= hi]))
+    return out
+
+
 def hint_flags(chain):
-    """Return list of {hint, meeting, evidence} dicts. Deterministic rules."""
     flags = []
-    per_meeting = {}
-    for ev in chain.events:
-        if ev["type"] == "MEETING-CLOSE":
-            continue
-        per_meeting.setdefault(ev["seq"] // 1000, []).append(ev)
-    # evaluation uses the whole chain; keep rules over all events + roots
-    meetings = chain.roots
-    for mid, meta in meetings.items():
-        evs = [e for e in chain.events if e["type"] != "MEETING-CLOSE"]
-        if len(meta.get("witnesses", [])) < 2:
+    if getattr(chain, "corrupt", False):
+        return [{"hint": "corrupt_chain", "meeting": "-",
+                 "evidence": "chain file is unreadable/incomplete"}]
+    for mid, evs in _meetings_with_events(chain):
+        meta = chain.roots.get(mid, {})
+        ws = meta.get("witnesses") or []
+        if len(ws) < MIN_WITNESSES:
             flags.append({"hint": "missing_witness", "meeting": mid,
-                          "evidence": "close signed by %d witness(es)" % len(meta.get("witnesses", []))})
+                          "evidence": "close signed by %d witness(es)" % len(ws)})
         paired = {}
         for e in evs:
             key = (e["member"], e["amount_paise"])
             paired[key] = paired.get(key, 0) + 1
-            if paired[key] == 2:
+            if paired[key] == 2 and not any(f["hint"] == "duplicate_identity" and f["meeting"] == mid
+                                            and key[0] in f["evidence"] for f in flags):
                 flags.append({"hint": "duplicate_identity", "meeting": mid,
                               "evidence": "%s Rs %d twice" % (e["member"], e["amount_paise"] // 100)})
         corrections = [e for e in evs if e["type"] == "correction"]
@@ -44,19 +66,27 @@ def hint_flags(chain):
             if total > 0 and top["amount_paise"] * 2 > total:
                 flags.append({"hint": "concentrated_lending", "meeting": mid,
                               "evidence": "%s took %d%% of loans" % (top["member"], round(100 * top["amount_paise"] / total))})
+        repaid = sum(e["amount_paise"] for e in evs if e["type"] == "repayment")
+        loaned = sum(e["amount_paise"] for e in evs if e["type"] == "loan")
+        if repaid > loaned:
+            flags.append({"hint": "arithmetic_mismatch", "meeting": mid,
+                          "evidence": "repayments Rs %d exceed loans Rs %d in meeting" % (repaid, loaned)})
     return flags
 
+
 def audit_report(chain):
-    ok, bad_seq, why = chain.verify()
+    st = audit_status(chain)
     meetings = [{"id": mid, "root_hash": m["root_hash"], "root_seq": m["root_seq"],
                  "witnesses": m.get("witnesses", [])} for mid, m in chain.roots.items()]
-    return {"group": chain.group_id, "chain_ok": ok,
-            "first_bad_seq": bad_seq, "why": why, "meetings": meetings,
-            "hints": hint_flags(chain)}
+    return {"group": chain.group_id, "chain_ok": st["chain_ok"],
+            "first_bad_seq": st["first_bad_seq"], "why": st["why"],
+            "meetings": meetings, "hints": hint_flags(chain)}
+
 
 def export_csv(chain):
-    lines = ["seq,etype,member,amount_paise,ts,hash"]
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["seq", "etype", "member", "amount_paise", "ts", "hash"])
     for e in chain.events:
-        lines.append("%d,%s,%s,%d,%s,%s" % (
-            e["seq"], e["type"], e["member"], e["amount_paise"], e["ts"], e["hash"]))
-    return "\n".join(lines) + "\n"
+        w.writerow([e["seq"], e["type"], e["member"], e["amount_paise"], e["ts"], e["hash"]])
+    return buf.getvalue()
