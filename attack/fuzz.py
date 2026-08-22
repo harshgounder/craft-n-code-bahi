@@ -44,7 +44,7 @@ def full_recompute(c):
     prev = h("GENESIS", c.group_id)
     for ev in c.events:
         ev["prev"] = prev
-        ev["hash"] = h(prev, ev["seq"], ev["type"], ev["member"], ev["amount_paise"], ev["ts"])
+        ev["hash"] = h(prev, c.group_id, ev["seq"], ev["type"], ev["member"], ev["amount_paise"], ev["ts"])  # PR10: group hashed
         prev = ev["hash"]
 
 def run():
@@ -74,8 +74,8 @@ def run():
         c.events[idx][field] = "TAMPER-%d" % i
         ok, bad_seq, why = c.verify()
         if field == "group":
-            t("fuzz.P3.%04d tamper group@%d UNDETECTED (group not hashed)" % (i, idx), ok,
-              "why=%s: group field is excluded from the per-event hash -> tamper passes verify()" % why)
+            t("fuzz.P3.%04d tamper group@%d DETECTED (group hashed, PR10)" % (i, idx), not ok,
+              "why=%s" % why)
         else:
             t("fuzz.P3.%04d tamper %s@%d detected" % (i, field, idx), not ok, "why=%s" % why)
     # P4a: bound receipt catches edit+recompute of the MEMBER'S OWN events (PR4 fix verified)
@@ -119,9 +119,8 @@ def run():
         c.events[rng.choice(targets)]["amount_paise"] = rng.randint(1, 10**6)
         full_recompute(c)
         ok, det = verify_receipt(c, rec)
-        t("fuzz.P4d.%04d NON-member event after member's last event edited+recomputed -> receipt MATCHes (blind spot)" % i,
-          ok and det == "MATCH",
-          "det=%s: other members' line items between the holder's last event and the close are NOT covered by her receipt; edit them + rehash -> entire meeting's other rows forged while her receipt MATCHes" % det)
+        t("fuzz.P4d.%04d NON-member edit+recompute now caught by close-hash tie (PR9)" % i,
+          not ok, "det=%s" % det)
     # P4c: mutating the MEETING-CLOSE event itself + recompute -> still MATCH (root pins metadata, not the close)
     for i in range(ITERS):
         c = random_chain()
@@ -139,9 +138,8 @@ def run():
         c.events[close_idx[0]]["ts"] = "1970-01-01T00:00:00"
         full_recompute(c)
         ok, det = verify_receipt(c, rec)
-        t("fuzz.P4c.%04d close-event edit + recompute -> bound receipt MATCHes (root pin hole)" % i,
-          ok and det == "MATCH",
-          "det=%s: the receipt root equals STALE metadata; the actual close event's recomputed hash is never compared. Editing the close itself (ts/amount) stays silent" % det)
+        t("fuzz.P4c.%04d close-event edit + recompute now caught (PR9 close-hash tie)" % i,
+          not ok, "det=%s" % det)
     # P4b: LEGACY receipts (no member_events) still MATCH under recompute
     for i in range(ITERS):
         c = random_chain()
@@ -157,8 +155,8 @@ def run():
             c.events[rng.randrange(len(c.events))]["amount_paise"] = rng.randint(1, 10**6)
         full_recompute(c)
         ok, det = verify_receipt(c, rec)
-        t("fuzz.P4b.%04d legacy receipt still MATCHes under recompute (finding persists)" % i, ok and det == "MATCH",
-          "det=%s: receipt without member_events falls back to member-exists; recompute hole open for all pre-PR4 receipts" % det)
+        t("fuzz.P4b.%04d legacy receipt popular recompute caught by close-hash tie (PR9)" % i, not ok,
+          "det=%s" % det)
     # P5: honest bound receipt for an EXISTING member always MATCHes (LAST meeting)
     for i in range(ITERS):
         c = random_chain()

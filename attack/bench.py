@@ -28,7 +28,7 @@ def chain_with(n, meetings=0):
     types = ["contribution", "loan", "repayment"] * (n // 3 + 1)
     members = ["Sita", "Geeta", "Reema", "Kavita", "Asha"] * (n // 5 + 1)
     for i in range(n):
-        c.add_event(i + 1, types[i], members[i], (i * 137) % 100000, t)
+        c.add_event(None, types[i], members[i], (i * 137) % 100000, t)  # PR10: auto seq
         if meetings and i % (n // meetings) == 0 and i > 0:
             c.close_meeting("M%03d" % (i // (n // meetings)), t)
     return c

@@ -125,7 +125,7 @@ class BahiChain:
             raise ValueError("MEETING-CLOSE is reserved for close_meeting()")
         if etype not in EVENT_TYPES:
             raise ValueError("unknown event type: %r" % (etype,))
-        if not isinstance(member, str) or not member:
+        if not isinstance(member, str) or not member.strip():
             raise ValueError("member must be a non-empty string")
         if member in _RESERVED_MEMBERS:
             raise ValueError("member name %r is reserved" % (member,))

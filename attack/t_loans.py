@@ -23,19 +23,20 @@ def run():
     c = chain_with([("loan", "A", 10000), ("repayment", "A", 4000)])
     b = balances(c)
     t("loans.001 basic outstanding", b["A"]["outstanding_paise"] == 6000, str(b))
-    t("loans.002 fields present", set(b["A"]) == {"member", "loaned_paise", "repaid_paise", "outstanding_paise"}, str(b["A"]))
+    t("loans.002 fields present", set(b["A"]) == {"member", "loaned_paise", "repaid_paise", "corrected_paise", "outstanding_paise", "over_repaid_paise"}, str(b["A"]))
 
-    # -------- repayment without loan -> NEGATIVE outstanding (free money) --------
+    # -------- repayment without loan -> over_repaid_paise surfaced (PR10 clamp) --------
     c = chain_with([("repayment", "B", 5000)])
     b = balances(c)
-    t("VULN.loans.repay-noloan negative outstanding for member with no loan",
-      b["B"]["outstanding_paise"] == -5000,
-      "repayment > loaned is accepted silently: member 'B' ends at Rs -50.00 outstanding (they can never have borrowed)")
+    t("SAFE.loans.repay-noloan over-repayment clamped + surfaced",
+      b["B"]["outstanding_paise"] == 0 and b["B"]["over_repaid_paise"] == 5000,
+      "member B: Rs 5000 over-repaid is recorded in over_repaid_paise, never negative outstanding")
     # over-repayment
     c = chain_with([("loan", "C", 1000), ("repayment", "C", 9000)])
     b = balances(c)
-    t("VULN.loans.overrepay negative outstanding after over-repayment",
-      b["C"]["outstanding_paise"] == -8000, str(b["C"]))
+    t("SAFE.loans.overrepay over-repayment surfaced (PR10)",
+      b["C"]["outstanding_paise"] == 0 and b["C"]["over_repaid_paise"] == 8000,
+      str(b["C"]))
     # repayment by a member with zero events at all
     c = chain_with([("loan", "D", 1000)])
     b = balances(c)
@@ -48,14 +49,23 @@ def run():
       b["Asha"]["outstanding_paise"] == 200000,
       "ledger lends Rs 200,000 while corpus only ever received Rs 100,000: balances() never compares loans vs contributions")
 
-    # -------- type confusion --------
+    # -------- type confusion: PR10 rejects unknown types at add_event --------
     for junk in ("loan100", "Loan", "repayment ", "loan\n", "loan\x00", "MEETING-CLOSE", "contribution"):
-        c = chain_with([(junk, "M", 5000)])
-        b = balances(c)
-        t("VULN.loans.type.%r ignored silently" % junk, junk not in b and "M" not in b,
-          "event type %r is not loan/repayment so funds vanish from the loan view" % junk)
-    # MEETING-CLOSE member __root__ 0 paise never enters balances
-    c = chain_with([("loan", "Z", 5000), ("MEETING-CLOSE", "__root__", 0)])
+        c = BahiChain("G")
+        try:
+            c.add_event(1, junk, "M", 5000, T)
+            if junk == "contribution":
+                t("loans.type.003 contribution is a valid type", True)
+            else:
+                t("SAFE.loans.type.001 %r rejected (PR10)" % junk, False, "accepted")
+        except ValueError:
+            if junk == "contribution":
+                t("loans.type.003 contribution is a valid type", False, "rejected?!")
+            else:
+                t("SAFE.loans.type.001 %r rejected (PR10)" % junk, True)
+    # MEETING-CLOSE via close_meeting only; __root__ 0 paise never enters balances
+    c = chain_with([("loan", "Z", 5000)])
+    c.close_meeting("M1", T)
     b = balances(c)
     t("loans.004 MEETING-CLOSE ignored", "Z" in b and "__root__" not in b)
 
@@ -75,17 +85,23 @@ def run():
     except Exception as e:
         t("SAFE.loans.str-amount balances() handles string amount", False, "%s: %r" % (type(e).__name__, e))
     c = BahiChain("G")
-    c.add_event(1, "repaid", "S", 5000, T)      # typo type fallback family (repaid vs repayment)
-    b = balances(c)
-    t("VULN.loans.typo 'repaid' vs 'repayment' funds vanish", "S" not in b,
-      "type 'repaid' is treated as an unrelated event: member S's Rs 5000 payment disappears from outstanding entirely")
+    try:
+        c.add_event(1, "repaid", "S", 5000, T)      # typo type (repaid vs repayment)
+        t("SAFE.loans.typo 'repaid' rejected (PR10)", False, "typo accepted")
+    except ValueError:
+        t("SAFE.loans.typo 'repaid' rejected (PR10)", True)
 
     # -------- duplicate seq members --------
     c = BahiChain("G")
     c.add_event(1, "loan", "A", 1000, T)
-    c.add_event(1, "loan", "A", 1000, T)
+    try:
+        c.add_event(1, "loan", "A", 1000, T)
+        t("SAFE.loans.008 duplicate seq rejected (PR10)", False, "dup accepted")
+    except ValueError:
+        t("SAFE.loans.008 duplicate seq rejected (PR10)", True)
+    c.add_event(2, "loan", "A", 1000, T)
     b = balances(c)
-    t("loans.007 duplicate-events summed", b["A"]["loaned_paise"] == 2000)
+    t("loans.009 sequential loans summed", b["A"]["loaned_paise"] == 2000)
 
     # -------- format_rupees --------
     t("loans.008 format", format_rupees(12345) == "Rs 123.45", format_rupees(12345))

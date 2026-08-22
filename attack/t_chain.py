@@ -26,11 +26,12 @@ def make_chain(n=7, group="G-RAJ-042", close=True, sigs=("Meera", "Laxmi")):
     return c, root
 
 def full_recompute(c):
-    """Recompute every event hash from the first event (attacker with file control)."""
+    """Recompute every event hash from the first event (attacker with file control).
+    Uses the CURRENT hash formula (group inside, PR10)."""
     prev = h("GENESIS", c.group_id)
     for ev in c.events:
         ev["prev"] = prev
-        ev["hash"] = h(prev, ev["seq"], ev["type"], ev["member"],
+        ev["hash"] = h(prev, c.group_id, ev["seq"], ev["type"], ev["member"],
                        _norm_amount(ev["amount_paise"]), ev["ts"])
         prev = ev["hash"]
 
@@ -59,34 +60,35 @@ def run():
     t("chain.H.008 NFC vs NFD spellings hash differently (byte-exact, no normalization)",
       h(nfc) != h(nfd), "same spoken name, different bytes -> receipt/chain mismatch on spelling (interop edge)")
 
-    # ---------- amount validation ----------
+    # ---------- amount validation (PR10: bool/float/str rejected) ----------
     t("SAFE.amount.001 negative int rejected", _norm_amount(-1) is None)
     t("SAFE.amount.002 zero accepted", _norm_amount(0) == 0)
-    t("VULN.amount.003 numeric-string amount accepted by _norm_amount", _norm_amount("1000") == 1000,
-      "int('1000') succeeds: string amounts pass validation; chain stores str")
-    t("VULN.amount.004 bool accepted as 1 paisa", _norm_amount(True) == 1,
-      "bool is an int subclass: True == 1 paisa")
+    t("SAFE.amount.003 non-integral float rejected (PR10)", _norm_amount(1.5) is None and _norm_amount(1.9) is None)
+    t("SAFE.amount.004 bool rejected (PR10)", _norm_amount(True) is None and _norm_amount(False) is None)
+    # documented design (chain.py _norm_amount): integral numeric strings
+    # normalize to int; non-numeric strings are rejected
+    t("SAFE.amount.005 integral numeric string normalizes", _norm_amount("1000") == 1000)
+    t("SAFE.amount.006 non-numeric string rejected", _norm_amount("abc") is None and _norm_amount("-3") is None)
     c = BahiChain("G")
     try:
-        c.add_event(1, "contribution", "Sita", "100", T)
-        t("VULN.amount.005 add_event accepts string amount", True, "amount_paise stored as str '100', hash uses str")
+        ev = c.add_event(1, "contribution", "Sita", "100", T)
+        t("SAFE.amount.007 string amount normalized to int", ev["amount_paise"] == 100 and isinstance(ev["amount_paise"], int), str(ev["amount_paise"]))
     except ValueError:
-        t("VULN.amount.005 add_event accepts string amount", False, "raised ValueError")
+        t("SAFE.amount.007 string amount normalized to int", False, "raised")
     try:
         c.add_event(2, "contribution", "Sita", True, T)
-        t("VULN.amount.006 add_event accepts bool amount", True, "True stored as 1 paisa")
+        t("SAFE.amount.008 add_event rejects bool amount (PR10)", False, "bool accepted")
     except ValueError:
-        t("VULN.amount.006 add_event accepts bool amount", False, "raised ValueError")
+        t("SAFE.amount.008 add_event rejects bool amount (PR10)", True)
     # _norm_amount returns None for invalid (sentinel), never raises for junk
     for bad in (-5, "abc", 1.5, None, [], {}, {"x": 1}):
         got = _norm_amount(bad)
         if bad == 1.5:
-            t("VULN.amount.007 float amount truncated instead of rejected", got == 1,
-              "int(1.5) truncates to 1: fractional paise silently become whole paise (1.9 -> 1)")
+            t("SAFE.amount.009 float rejected (PR10)", got is None, "got %r" % (got,))
         else:
-            t("SAFE.amount.007 reject junk %r (None sentinel)" % (bad,), got is None,
+            t("SAFE.amount.009 reject junk %r (None sentinel)" % (bad,), got is None,
               "got %r" % (got,))
-    t("SAFE.amount.008 NaN rejected", _norm_amount(float("nan")) is None)
+    t("SAFE.amount.010 NaN rejected", _norm_amount(float("nan")) is None)
 
     # ---------- member / type / ts validation ----------
     try:
@@ -102,27 +104,27 @@ def run():
     c2 = BahiChain("G")
     try:
         c2.add_event(1, "contribution", "   ", 10, T)
-        t("VULN.member.003 whitespace-only member accepted", True, "no strip(): '   ' is a valid member name")
+        t("SAFE.member.003 whitespace-only member rejected (PR10)", False)
     except ValueError:
-        t("VULN.member.003 whitespace-only member accepted", False)
+        t("SAFE.member.003 whitespace-only member rejected (PR10)", True)
     c3 = BahiChain("G")
     try:
         c3.add_event(1, "any-garbage-type-here", "Sita", 10, T)
-        t("VULN.type.001 arbitrary event type accepted", True, "etype is never validated (feeds XSS surface in server)")
+        t("SAFE.type.001 arbitrary event type rejected (PR10)", False)
     except ValueError:
-        t("VULN.type.001 arbitrary event type accepted", False)
+        t("SAFE.type.001 arbitrary event type rejected (PR10)", True)
     try:
         c3.add_event(2, "loan", "Sita", 10, None)
-        t("VULN.ts.001 None timestamp accepted", True, "str(None)='None' becomes part of the hash")
+        t("SAFE.ts.001 None timestamp rejected (PR10)", False)
     except (TypeError, ValueError):
-        t("VULN.ts.001 None timestamp accepted", False)
+        t("SAFE.ts.001 None timestamp rejected (PR10)", True)
     try:
         c3.add_event(3, "loan", "Sita", 10, {"a": 1})
-        t("VULN.ts.002 dict timestamp accepted", True, "str(dict) hashed")
+        t("SAFE.ts.002 dict timestamp rejected (PR10)", False)
     except (TypeError, ValueError):
-        t("VULN.ts.002 dict timestamp accepted", False)
+        t("SAFE.ts.002 dict timestamp rejected (PR10)", True)
 
-    # ---------- chain construction / seq handling ----------
+    # ---------- chain construction / seq handling (PR10: strict monotonic) ----------
     c4 = BahiChain("G")
     c4.add_event(1, "contribution", "Sita", 100, T)
     try:
@@ -132,19 +134,23 @@ def run():
         t("chain.seq.001 correction (same identity) allowed", False, repr(e))
     try:
         c4.add_event(2, "loan", "Ghost", 999, T)
-        t("VULN.seq.002 duplicate seq with DIFFERENT identity allowed",
-          True, "comment claims a guard; code has none: two events with seq=2 and different members coexist")
+        t("SAFE.seq.002 duplicate seq rejected (PR10)", False)
     except ValueError:
-        t("VULN.seq.002 duplicate seq with DIFFERENT identity allowed", False, "guard present")
+        t("SAFE.seq.002 duplicate seq rejected (PR10)", True)
     ok, _, _ = c4.verify()
-    t("VULN.seq.003 chain with duplicate seqs verifies OK", ok, "verify() does not enforce unique/monotonic seqs")
+    t("chain.seq.003 monotonic chain verifies OK", ok, "after PR10 strict seqs")
     c5 = BahiChain("G")
-    c5.add_event(99, "contribution", "Sita", 100, T)
-    r5 = c5.close_meeting("M1", T)   # close seq = len+1 = 2, COLLIDES with nothing (99 exists)
-    t("VULN.seq.004 close_meeting seq can be < existing event seq", r5["root_seq"] == 2 and c5.events[-1]["seq"] == 2,
-      "root_seq 2 while event seq 99 exists: seq order vs insertion order decoupled")
+    try:
+        c5.add_event(99, "contribution", "Sita", 100, T)
+        t("SAFE.seq.004 out-of-order first seq rejected (PR10)", False)
+    except ValueError:
+        t("SAFE.seq.004 out-of-order first seq rejected (PR10)", True)
+    c5.add_event(1, "contribution", "Sita", 100, T)
+    r5 = c5.close_meeting("M1", T)
+    t("chain.seq.005 close seq = next monotonic", r5["root_seq"] == 2,
+      "root_seq %d (want 2)" % r5.get("root_seq"))
     ok5, _, _ = c5.verify()
-    t("VULN.seq.005 out-of-order seq chain verifies OK", ok5, "verify() follows prev pointers, not seq order")
+    t("chain.seq.006 close chain verifies OK", ok5, "")
 
     # ---------- tamper matrix (naive edit, expect detection) ----------
     # field-level tamper on a single event index
@@ -164,21 +170,26 @@ def run():
             c, _ = make_chain()
             poke(c, midx, field, value)
             okv, bad_seq, whyv = c.verify()
-            t("SAFE.tamper.%s.%s (%s)" % (label, field, midx), not okv and "mismatch" in whyv,
-              "ok=%s bad_seq=%s why=%s" % (okv, bad_seq, whyv))
-        # group field: NOT part of the per-event hash -> undetected
+            if field == "seq":
+                # PR10: seq now validated during verify -> corrupt-file: bad seq
+                t("SAFE.tamper.%s.%s (%s) caught" % (label, field, midx),
+                  not okv and ("mismatch" in whyv or "corrupt-file" in whyv),
+                  "ok=%s bad_seq=%s why=%s" % (okv, bad_seq, whyv))
+            else:
+                t("SAFE.tamper.%s.%s (%s)" % (label, field, midx), not okv and "mismatch" in whyv,
+                  "ok=%s bad_seq=%s why=%s" % (okv, bad_seq, whyv))
+        # group field IS part of the per-event hash now (PR10) -> detected
         c, _ = make_chain()
         poke(c, midx, "group", "G-OTHER-CLAN")
         okv, _, whyv = c.verify()
-        t("VULN.tamper.%s.group (%s) silent: group absent from event hash" % (label, midx),
-          okv and whyv == "ok",
-          "add_event hashes h(prev,seq,type,member,amt,ts): 'group' is never hashed; changing any event's group passes verify()")
+        t("SAFE.tamper.%s.group (%s) caught: group is hashed (PR10)" % (label, midx),
+          not okv, "why=%s" % whyv)
     # swap adjacent
     for label, (i, j) in (("first-two", (0, 1)), ("middle", (3, 4)), ("last-two", (-2, -1))):
         c, _ = make_chain()
         c.events[i], c.events[j] = c.events[j], c.events[i]
         okv, bad_seq, whyv = c.verify()
-        t("SAFE.swap.%s" % label, not okv and ("prev-hash-mismatch" in whyv or "event-hash-mismatch" in whyv),
+        t("SAFE.swap.%s" % label, not okv and ("prev-hash-mismatch" in whyv or "event-hash-mismatch" in whyv or "corrupt-file" in whyv),
           "ok=%s bad_seq=%s why=%s" % (okv, bad_seq, whyv))
     # delete
     for label, idx in (("first", 0), ("second", 1), ("middle", 3), ("close", -1)):
@@ -186,26 +197,27 @@ def run():
         del c.events[idx]
         okv, bad_seq, whyv = c.verify()
         if label == "first":
-            t("VULN.del.first genesis deletion passes verify()", okv,
-              "deleting the HEAD event leaves every later prev-link valid: verify() cannot see head removal")
+            # PR11: genesis anchored now -> deleting the head breaks the anchor
+            t("SAFE.del.first genesis anchored (PR11): deletion caught", not okv,
+              "ok=%s why=%s" % (okv, whyv))
         elif label == "close":
             t("chain.del.%s verify() stays OK (no forward link to check)" % label, okv,
               "deleting the LAST event is invisible to verify(); receipt layer must catch it")
         else:
-            t("SAFE.del.%s" % label, not okv and "mismatch" in whyv, "ok=%s why=%s" % (okv, whyv))
-    # genesis/prefix deletion vs HELD receipts: whole M06 meeting erasable, M07 receipt still MATCH
+            t("SAFE.del.%s" % label, not okv and ("mismatch" in whyv or "corrupt-file" in whyv),
+              "ok=%s why=%s" % (okv, whyv))
+    # genesis/prefix deletion vs HELD receipts: PR9 close-hash tie catches it
     c, root = make_chain()
-    rec = receipt_payload("G-RAJ-042", "M07", root, "Sita")
+    rec = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
     del c.events[0]          # M06 loan
     del c.events[0]          # M06 close (now head)
     okv, _, whyv = c.verify()
     okr, det = verify_receipt(c, rec)
-    t("VULN.del.prefix entire M06 history (including its close) deletable while M07 receipt MATCHes",
-      okv and okr and det == "MATCH",
-      "receipt for M07 does not require earlier meetings to exist: chain.verify() OK + MATCH -> the Rs 20000 M06 loan vanishes with zero detection")
+    t("SAFE.del.prefix M06 deletion detected (anchor + close-hash)", not okr,
+      "verify=%s why=%s | receipt=%s" % (okv, whyv, det))
     # append after close: verify() OK, receipt layer catches
     c, root = make_chain()
-    c.add_event(99, "contribution", "Ghost", 1, T)
+    c.add_event(None, "contribution", "Ghost", 1, T)
     okv, _, whyv = c.verify()
     t("chain.append.001 verify() stays OK after post-close append", okv,
       "chain math is consistent; only receipt terminality sees it")
@@ -216,40 +228,39 @@ def run():
     c.events[6]["amount_paise"] = 1
     full_recompute(c)
     okv, _, whyv = c.verify()
-    t("VULN.recompute.001 chain.verify() passes after edit + full recompute", okv,
-      "verify() only checks internal consistency; attacker rewriting every hash defeats it (documented boundary)")
+    t("chain.recompute.001 consistent recompute passes verify()", okv,
+      "verify() checks internal consistency; a consistent rewrite is the documented boundary")
     t("chain.recompute.002 recompute leaves roots metadata stale", root["root_hash"] != c.events[-1]["hash"],
       "root metadata still points at the OLD tail hash until the attacker updates it")
-    # receipt still matches under full recompute: root check compares receipt vs STALE metadata
-    rec = receipt_payload("G-RAJ-042", "M07", root, "Sita")
+    # PR9 close-hash tie: receipt root MUST equal recomputed close hash
+    rec = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
     okr, det = verify_receipt(c, rec)
-    t("VULN.recompute.003 FULL RECOMPUTE + naive edit: receipt still MATCHes", okr and det == "MATCH",
-      "verify_receipt compares receipt root against roots[] metadata (also stale) but NEVER against the recomputed chain tail; edit any event + rehash everything -> MATCH. Their own 'boundary' is silently accepted by receipts")
+    t("SAFE.recompute.003 full recompute caught by close-hash tie (PR9)", not okr,
+      "receipt=%s" % det)
     # recompute AND update root metadata
     c2, root2 = make_chain()
     c2.events[6]["amount_paise"] = 1
     full_recompute(c2)
     c2.roots["M07"]["root_hash"] = c2.events[-1]["hash"]
-    okr2, det2 = verify_receipt(c2, receipt_payload("G-RAJ-042", "M07", root2, "Sita"))
-    t("VULN.recompute.004 recompute + root-metadata update: receipt MATCHes", okr2 and det2 == "MATCH",
-      "receipt root == updated metadata root -> MATCH; only the member's separate copy of the OLD root catches this")
+    okr2, det2 = verify_receipt(c2, receipt_payload("G-RAJ-042", "M07", root2, "Sita", chain=c2))
+    t("SAFE.recompute.004 recompute + metadata update caught (close-hash + member binding)", not okr2,
+      "receipt=%s" % det2)
     # recompute + root update + append post-close... still caught by terminality
     c3, root3 = make_chain()
     c3.events[6]["amount_paise"] = 1
     full_recompute(c3)
     c3.roots["M07"]["root_hash"] = c3.events[-1]["hash"]
-    c3.add_event(100, "contribution", "Ghost", 50000, T)
-    okr3, det3 = verify_receipt(c3, receipt_payload("G-RAJ-042", "M07", root3, "Sita"))
-    t("SAFE.recompute.005 receipt catches recompute + append ghost event", not okr3 and "events-after-close" in det3, det3)
-    # cross-group event smuggling: per-event group not cross-checked
+    c3.add_event(None, "contribution", "Ghost", 50000, T)
+    okr3, det3 = verify_receipt(c3, receipt_payload("G-RAJ-042", "M07", root3, "Sita", chain=c3))
+    t("SAFE.recompute.005 receipt catches recompute + append ghost event", not okr3 and ("events-after-close" in det3 or "FORK" in det3), det3)
+    # cross-group event smuggling: per-event group now hashed + checked (PR10)
     c4, root4 = make_chain()
     c4.events[0]["group"] = "G-OTHER-CLAN"
     full_recompute(c4)
     okv4, _, why4 = c4.verify()
-    okr4, det4 = verify_receipt(c4, receipt_payload("G-RAJ-042", "M07", root4, "Sita"))
-    t("VULN.recompute.006 per-event group field never checked: cross-group events verify MATCH",
-      okv4 and okr4 and det4 == "MATCH",
-      "event-level group is hashed but never compared to head group or receipt; G-OTHER events ride inside G-RAJ-042 chain")
+    okr4, det4 = verify_receipt(c4, receipt_payload("G-RAJ-042", "M07", root4, "Sita", chain=c4))
+    t("SAFE.recompute.006 cross-group smuggling caught (group hashed, PR10)", not okv4 or not okr4,
+      "verify=%s why=%s | receipt=%s" % (okv4, why4, det4))
 
     # ---------- roots tampering ----------
     c, root = make_chain()
@@ -277,13 +288,15 @@ def run():
     c6.roots["M07"] = None
     okr6, det6 = verify_receipt(c6, receipt_payload("G-RAJ-042", "M07", root6, "Sita"))
     t("chain.roots.004 None root metadata -> meeting-root-missing (graceful)", not okr6 and "meeting-root-missing" in det6, det6)
-    # duplicate close of same meeting id overwrites the old root
+    # duplicate close of same meeting id now RAISES (PR10 A05)
     c7, root7 = make_chain()
     old_hash = root7["root_hash"]
-    r_b = c7.close_meeting("M07", T)   # same meeting id again
-    t("VULN.roots.005 close_meeting same id silently overwrites previous root", c7.roots["M07"]["root_hash"] != old_hash,
-      "M07's first root metadata is destroyed: receipts for the first M07 close now FORK via root mismatch, original root lost")
-    t("chain.roots.006 both close events remain in chain", sum(1 for e in c7.events if e["type"] == "MEETING-CLOSE") == 2)
+    try:
+        r_b = c7.close_meeting("M07", T)
+        t("SAFE.roots.005 close_meeting same id REJECTED (PR10)", False, "dup close accepted")
+    except ValueError:
+        t("SAFE.roots.005 close_meeting same id REJECTED (PR10)", True)
+    t("chain.roots.006 original root intact", c7.roots["M07"]["root_hash"] == old_hash)
 
     # ---------- group binding ----------
     c, root = make_chain()
@@ -293,9 +306,11 @@ def run():
     except Exception as e:
         t("SAFE.group.001 wrong group receipt fails", False, repr(e))
     c8 = BahiChain("")
-    c8.add_event(1, "contribution", "Sita", 100, T)
-    t("VULN.group.002 empty group id chain is 'corrupt' by property", c8.corrupt,
-      "group_id == '' marks chain corrupt even though events are well-formed")
+    try:
+        c8.add_event(1, "contribution", "Sita", 100, T)
+        t("SAFE.group.002 empty group id REJECTED (PR10)", False, "empty group accepted")
+    except ValueError:
+        t("SAFE.group.002 empty group id REJECTED (PR10)", True)
 
     # ---------- determinism ----------
     cA, rA = make_chain()

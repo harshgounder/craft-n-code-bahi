@@ -4,6 +4,7 @@ substring bug, formula injection, meeting attribution edges."""
 import sys, os.path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from chain import BahiChain
+from witness import sign_entry
 from exporter import hint_flags, audit_report, export_csv, _meetings_with_events
 
 T = "2026-08-02T10:00:00"
@@ -14,7 +15,7 @@ def add(c, seq, etype, member, amt):
 def close(c, mid, ws=("Meera", "Laxmi")):
     r = c.close_meeting(mid, T)
     for w in ws:
-        r["witnesses"].append(w)
+        r["witnesses"].append(sign_entry({"root": r["root_hash"], "meeting": mid}, "pass-"+w if not "," in str(w) else w, w.split(",")[0] if "," in str(w) else w))
     return r
 
 def run():
@@ -64,9 +65,9 @@ def run():
     add(c, 6, "contribution", "Ash", 700)
     close(c, "M1")
     fl = [f["evidence"] for f in hint_flags(c) if f["hint"] == "duplicate_identity"]
-    t("VULN.hint.substr 'Ash' duplicate flag suppressed by 'Asha' evidence (substring match)",
-      not any("Ash Rs 7" in e for e in fl),
-      "rule checks if member name is a SUBSTRING of existing evidence: 'Ash' in 'Asha Rs 5...' -> flag suppressed")
+    t("SAFE.hint.substr 'Ash' flag NOT suppressed by 'Asha' (fix landed)",
+      any("Ash Rs 7" in e for e in fl),
+      "both names flag independently: %s" % fl)
     # 3 identical contributions DO flag (threshold) but 2 identical loans do NOT (paired threshold logic only fires >=3)
     c = BahiChain("G")
     add(c, 1, "loan", "X", 1000)
@@ -79,11 +80,11 @@ def run():
     c = BahiChain("G")
     add(c, 1, "loan", "A", 1000)
     close(c, "M1")
-    add(c, 99, "loan", "A", 500000)   # after close, seq 99 (post-close ghost via crafted file)
-    fl = hint_flags(c)
-    t("VULN.hint.orphan post-close events invisible to hint rules",
-      not any(f["hint"] == "concentrated_lending" for f in fl),
-      "event seq 99 falls outside every meeting window; hint analysis never sees it (verify_receipt does catch it, but exporter 'auditor view' shows clean)")
+    try:
+        add(c, 99, "loan", "A", 500000)   # PR10: non-sequential seq rejected
+        t("SAFE.hint.orphan post-close event REJECTED (PR10)", False, "accepted")
+    except ValueError:
+        t("SAFE.hint.orphan post-close event REJECTED (PR10)", True)
     # events BEFORE first root (seq 0 window) attributed to first meeting (lo=0) - fine
     # concentrated_lending needs >=2 loans PER MEETING: single-loan meetings invisible
     c = BahiChain("G")
@@ -125,23 +126,24 @@ def run():
     add(c, 3, "loan", "B", 2000)
     close(c, "M2")
     m = _meetings_with_events(c)
-    t("exporter.meet.001 two meetings two windows", len(m) == 2 and len(m[0][1]) == 1 and len(m[1][1]) == 1, str([(x, len(y)) for x, y in m]))
+    pairs = m[0]  # (meetings, invalid_events) tuple post-PR10
+    t("exporter.meet.001 two meetings two windows", len(pairs) == 2 and len(pairs[0][1]) == 1 and len(pairs[1][1]) == 1, str(m))
     c = BahiChain("G")
     add(c, 1, "loan", "A", 1000)
     r2 = close(c, "M1")
     del c.roots["M1"]
     m = _meetings_with_events(c)
     t("VULN.exporter.meet.002 deleted root metadata silently drops meeting AND its events from exports",
-      len(m) == 0,
+      len(m[0]) == 0,
       "removing a roots[] entry erases the meeting from the audit report entirely; hints + meetings list go quiet")
     # duplicate root_seq (two meetings same seq) -> all events rehomed to the FIRST meeting
     c = BahiChain("G")
     add(c, 1, "loan", "A", 1000)
     close(c, "M1")
-    c.roots["M2"] = {"root_hash": "x" * 64, "root_seq": c.roots["M1"]["root_seq"], "ts": T, "witnesses": ["a", "b"]}
+    c.roots["M2"] = {"root_hash": "x" * 64, "root_seq": c.roots["M1"]["root_seq"], "ts": T, "witnesses": [{"witness": "a", "sig": "0" * 64}, {"witness": "b", "sig": "1" * 64}]}
     m = _meetings_with_events(c)
     t("VULN.exporter.meet.003 duplicate root_seq rehomes events: M2 window empty, M1 double-claims",
-      len(m) == 2 and len(m[1][1]) == 0 and len(m[0][1]) == 1,
+      len(m[0]) == 2 and len(m[0][1][1]) == 0 and len(m[0][0][1]) == 1,
       "root_seqs sorted [(2,M1),(2,M2)]: M2 gets lo=3>hi=2 -> empty window; ALL M1 events attributed once to M1 but M2's identity vanishes")
 
     # ---------- CSV export: formula injection + escaping ----------
@@ -194,18 +196,14 @@ def run():
     c.events[0]["amount_paise"] = 1
     rep = audit_report(c)
     t("SAFE.report.005 tampered chain reported", rep["chain_ok"] is False and "mismatch" in rep["why"], str(rep["why"]))
-    # corrupt chain report: audit_report CRASHES on load()-produced corrupt state
+    # corrupt chain report: audit_report does NOT crash (fix landed)
     c = BahiChain("G")
     c.roots = {"__corrupt__": {"corrupt": "load: boom"}}
     try:
         rep = audit_report(c)
-        t("VULN.report.006 audit_report crashes on corrupt chain", False,
-          "no exception (test expected a crash: exporter claims 'never raises on corrupt chains' but reads root_hash from __corrupt__ entry)")
-    except KeyError as e:
-        t("VULN.report.006 audit_report crashes on corrupt chain", True,
-          "KeyError %r: exporter.py audit_report() iterates roots incl. __corrupt__ and requires root_hash/root_seq; a file that load() marks corrupt instantly crashes /api/export" % (e,))
+        t("SAFE.report.006 audit_report survives corrupt chain", rep["chain_ok"] is False,
+          "corrupt flag surfaced, no crash: %s" % str(rep)[:60])
     except Exception as e:
-        t("VULN.report.006 audit_report crashes on corrupt chain", True,
-          "%s: %r: exporter crashes on corrupt chains despite its own docstring" % (type(e).__name__, e))
+        t("SAFE.report.006 audit_report survives corrupt chain", False, "%s: %s" % (type(e).__name__, e))
 
     return R

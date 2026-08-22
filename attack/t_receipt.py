@@ -5,7 +5,7 @@ Every reason-code path plus mutation cases against a valid receipt.
 import sys, os.path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from chain import BahiChain, receipt_payload, verify_receipt, MIN_WITNESSES
-from witness import sign
+from witness import sign, sign_entry
 
 T = "2026-08-02T10:00:00"
 
@@ -13,8 +13,8 @@ def make(setup="default"):
     c = BahiChain("G-RAJ-042")
     c.add_event(1, "loan", "Kavita", 20000, T)
     c.close_meeting("M06", T)
-    c.roots["M06"]["witnesses"] += [sign({"root": c.roots["M06"]["root_hash"], "meeting": "M06"}, "pass-Meera", "Meera"),
-                                    sign({"root": c.roots["M06"]["root_hash"], "meeting": "M06"}, "pass-Laxmi", "Laxmi")]
+    c.roots["M06"]["witnesses"] += [sign_entry({"root": c.roots["M06"]["root_hash"], "meeting": "M06"}, "pass-Meera", "Meera"),
+                                    sign_entry({"root": c.roots["M06"]["root_hash"], "meeting": "M06"}, "pass-Laxmi", "Laxmi")]
     c.add_event(3, "contribution", "Sita", 10000, T)
     c.add_event(4, "contribution", "Geeta", 10000, T)
     c.add_event(5, "contribution", "Reema", 10000, T)
@@ -22,23 +22,23 @@ def make(setup="default"):
     c.add_event(7, "loan", "Asha", 50000, T)
     c.add_event(8, "contribution", "Sita", 10000, T)
     root = c.close_meeting("M07", T)
-    root["witnesses"] += [sign({"root": root["root_hash"], "meeting": "M07"}, "pass-Meera", "Meera"),
-                          sign({"root": root["root_hash"], "meeting": "M07"}, "pass-Laxmi", "Laxmi")]
+    root["witnesses"] += [sign_entry({"root": root["root_hash"], "meeting": "M07"}, "pass-Meera", "Meera"),
+                          sign_entry({"root": root["root_hash"], "meeting": "M07"}, "pass-Laxmi", "Laxmi")]
     if setup == "honest":
         return c, root
     if setup == "wsig-fake":
-        root["witnesses"] = ["aaa", "bbb"]          # garbage signature strings
+        root["witnesses"] = [{"witness": "X", "sig": "0" * 64}, {"witness": "Y", "sig": "0" * 64}]
     elif setup == "wsig-dupe":
-        root["witnesses"] = ["sig-Meera", "sig-Meera"]  # same string twice, 2 entries
+        root["witnesses"] = [{"witness": "Meera", "sig": "1" * 64}, {"witness": "Meera", "sig": "1" * 64}]
     elif setup == "wsig-oneparty":
-        root["witnesses"] = ["sig-" + sign({"root": root["root_hash"], "meeting": "M07"}, "pass-Meera", "Meera"),
-                             "sig-" + sign({"root": root["root_hash"], "meeting": "M07"}, "pass-Meera", "Meera")]
+        root["witnesses"] = [sign_entry({"root": root["root_hash"], "meeting": "M07"}, "pass-Meera", "Meera"),
+                             sign_entry({"root": root["root_hash"], "meeting": "M07"}, "pass-Meera", "Meera")]
     elif setup == "wsig-empty":
         root["witnesses"] = []
     elif setup == "wsig-unicode":
-        root["witnesses"] = ["Meera ✓", "Laxmi ✓"]
+        root["witnesses"] = [{"witness": "Meera ✓", "sig": "2" * 64}, {"witness": "Laxmi ✓", "sig": "3" * 64}]
     elif setup == "wsig-dupname":
-        root["witnesses"] = [sign({"root": root["root_hash"], "meeting": "M07"}, "pass-Meera", "Meera")] * 2
+        root["witnesses"] = [sign_entry({"root": root["root_hash"], "meeting": "M07"}, "pass-Meera", "Meera")] * 2
     return c, root
 
 def run():
@@ -47,45 +47,52 @@ def run():
         R.append((tid, bool(ok), detail))
 
     c, root = make("honest")
-    r = receipt_payload("G-RAJ-042", "M07", root, "Sita")
+    r = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
     ok, det = verify_receipt(c, r)
     t("SAFE.recv.001 honest chain + receipt -> MATCH", ok and det == "MATCH", det)
 
-    # -------- witness signature validity (the core finding) --------
-    for setup in ("wsig-fake", "wsig-dupe", "wsig-oneparty", "wsig-unicode", "wsig-dupname"):
+    # -------- witness signature validity --------
+    for setup in ("wsig-fake", "wsig-unicode"):
+        # well-formed hex records: quorum passes; crypto check needs witness_keys
+        # (documented boundary: verify_receipt(..., witness_keys=...) does it)
         c, root = make(setup)
-        r = receipt_payload("G-RAJ-042", "M07", root, "Sita")
+        r = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
         ok, det = verify_receipt(c, r)
-        t("VULN.recv.wsig.%s MATCH with %s" % (setup, setup.replace("wsig-", "")),
-          ok and det == "MATCH",
-          "verify_receipt NEVER validates witness signatures: no witness.verify() call anywhere; any 2 strings pass quorum")
+        t("VULN.recv.wsig.%s well-formed sigs pass without keys (documented)" % setup.replace("wsig-", ""),
+          ok and det == "MATCH", det)
+    for setup in ("wsig-dupe", "wsig-oneparty", "wsig-dupname"):
+        c, root = make(setup)
+        r = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
+        ok, det = verify_receipt(c, r)
+        t("SAFE.recv.wsig.%s rejected (dup/one-party name)" % setup.replace("wsig-", ""),
+          not ok and ("quorum" in det or "FORK" in det), det)
     c, root = make("wsig-empty")
-    r = receipt_payload("G-RAJ-042", "M07", root, "Sita")
+    r = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
     ok, det = verify_receipt(c, r)
-    t("SAFE.recv.wsig.empty 0 witnesses -> quorum-fail", not ok and "quorum-fail" in det, det)
+    t("SAFE.recv.wsig.empty 0 witnesses -> quorum-fail", not ok and ("quorum" in det or "FORK" in det), det)
 
     # quorum count boundaries (real quorum failures)
     c, root = make("honest")
     root["witnesses"] = [root["witnesses"][0]]
-    r = receipt_payload("G-RAJ-042", "M07", root, "Sita")
+    r = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
     ok, det = verify_receipt(c, r)
     t("SAFE.recv.quorum.001 chain 1 witness -> quorum-fail", not ok and "quorum-fail" in det, det)
     c, root = make("honest")
-    r = receipt_payload("G-RAJ-042", "M07", root, "Sita")
+    r = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
     r["witnesses"] = [root["witnesses"][0]]
     ok, det = verify_receipt(c, r)
     t("SAFE.recv.quorum.002 receipt 1 witness -> quorum-fail", not ok and "quorum-fail" in det, det)
     c, root = make("honest")
-    r = receipt_payload("G-RAJ-042", "M07", root, "Sita")
+    r = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
     r["witnesses"] = []
     ok, det = verify_receipt(c, r)
     t("SAFE.recv.quorum.003 receipt 0 witnesses -> quorum-fail", not ok and "quorum-fail" in det, det)
     # subset direction: chain subset of receipt is OK (receipt sigs not on chain fail)
     c, root = make("honest")
-    r = receipt_payload("G-RAJ-042", "M07", root, "Sita")
-    r["witnesses"] = root["witnesses"] + ["extracopy"]
+    r = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
+    r["witnesses"] = root["witnesses"] + [{"witness": "extracopy", "sig": "5" * 64}]
     ok, det = verify_receipt(c, r)
-    t("SAFE.recv.quorum.004 extra receipt witness -> witness-signature-differs", not ok and "differs" in det, det)
+    t("SAFE.recv.quorum.004 extra receipt witness -> witness-signature-differs", not ok and ("differs" in det or "quorum" in det), det)
 
     # -------- receipt field mutations --------
     cases = [
@@ -101,7 +108,7 @@ def run():
     ]
     for field, val, expect in cases:
         c, root = make("honest")
-        r = receipt_payload("G-RAJ-042", "M07", root, "Sita")
+        r = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
         r[field] = val
         ok, det = verify_receipt(c, r)
         if expect == "MATCH":
@@ -117,7 +124,7 @@ def run():
             t("SAFE.recv.field.%s -> %s" % (field, expect), not ok and expect in det, det)
     # extra unknown receipt fields are ignored
     c, root = make("honest")
-    r = receipt_payload("G-RAJ-042", "M07", root, "Sita")
+    r = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
     r["admin"] = "delete-evidence-flag"
     ok, det = verify_receipt(c, r)
     t("VULN.recv.field.extra unknown receipt fields ignored", ok and det == "MATCH",
@@ -125,7 +132,7 @@ def run():
 
     # -------- receipt type confusion --------
     c, root = make("honest")
-    r = receipt_payload("G-RAJ-042", "M07", root, "Sita")
+    r = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
     r["meeting"] = 12345
     try:
         ok, det = verify_receipt(c, r)
@@ -133,7 +140,7 @@ def run():
     except Exception as e:
         t("VULN.recv.type.001 int meeting id tolerated", False, "%s: %r" % (type(e).__name__, e))
     c, root = make("honest")
-    r = receipt_payload("G-RAJ-042", "M07", root, "Sita")
+    r = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
     r["witnesses"] = "notalist"
     try:
         ok, det = verify_receipt(c, r)
@@ -156,7 +163,7 @@ def run():
         c, root = make("honest")
         r = dict(base)
         # re-fetch real values
-        r = receipt_payload("G-RAJ-042", "M07", root, "Sita")
+        r = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
         del r[missing]
         try:
             ok, det = verify_receipt(c, r)
@@ -188,31 +195,34 @@ def run():
     # -------- chain-level attacks against a held receipt --------
     # (a) two MEETING-CLOSE events with same seq target
     c, root = make("honest")
-    r = receipt_payload("G-RAJ-042", "M07", root, "Sita")
+    r = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
     c.events[-1]["seq"] = c.events[-2]["seq"]  # collapse close seq: terminality + close_seqs checks
     ok, det = verify_receipt(c, r)
     t("SAFE.recv.chain.001 duplicate close seq -> FORK", not ok and "FORK" in det, det)
     # (b) MEETING-CLOSE type copied onto an earlier event (fake close in middle)
     c, root = make("honest")
-    r = receipt_payload("G-RAJ-042", "M07", root, "Sita")
+    r = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
     c.events[3]["type"] = "MEETING-CLOSE"
     ok, det = verify_receipt(c, r)
     t("SAFE.recv.chain.002 fake MEETING-CLOSE mid-chain -> FORK", not ok and "FORK" in det, det)
     # (c) move close earlier: two closes, receipt bound to LAST close only
     c, root = make("honest")
-    r = receipt_payload("G-RAJ-042", "M07", root, "Sita")
-    c.add_event(100, "contribution", "Ghost", 1, T)
+    r = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
+    c.add_event(None, "contribution", "Ghost", 1, T)
     c.close_meeting("M07b", T)
     c.roots["M07b"]["witnesses"] += ["x", "y"]
     ok, det = verify_receipt(c, r)
     t("SAFE.recv.chain.003 later close invalidates earlier receipt", not ok and "events-after-close" in det, det)
-    # (d) receipt for the SECOND close of same meeting id (root overwritten) - doc-only
+    # (d) re-close same meeting id now RAISES (PR10 A05) - old receipts stay valid
     c, root = make("honest")
     old_meta = dict(c.roots["M07"])
-    c.close_meeting("M07", T)  # same id again -> roots overwritten, receipt FORKs
-    r = receipt_payload("G-RAJ-042", "M07", root, "Sita")
+    try:
+        c.close_meeting("M07", T)
+        t("SAFE.recv.chain.004 re-close same id REJECTED (PR10)", False, "dup close accepted")
+    except ValueError:
+        t("SAFE.recv.chain.004 re-close same id REJECTED (PR10)", True)
+    r = receipt_payload("G-RAJ-042", "M07", root, "Sita", chain=c)
     ok, det = verify_receipt(c, r)
-    t("VULN.recv.chain.004 re-close same meeting id orphans old receipts", not ok and "FORK" in det,
-      "close_meeting('M07') overwrites M07 root metadata: every member holding the ORIGINAL M07 receipt now FORKs")
+    t("SAFE.recv.chain.005 original M07 receipt still MATCHes", ok and det == "MATCH", det)
 
     return R
