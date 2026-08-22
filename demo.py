@@ -2,7 +2,7 @@
 """demo.py - BAHI 90-second demo harness. Runs the full story end to end:
 meeting, witness signing, member receipt, ATTACK (tamper M07), fork detection.
 Deterministic: same input -> same output, always."""
-import json, sys
+import json, sys, os, tempfile
 from chain import BahiChain, receipt_payload, verify_receipt
 from witness import sign
 
@@ -33,7 +33,7 @@ def run(verbose=True):
     p("MEMBER RECEIPT (Sita): %s" % detail)
     p("receipt root: %s" % receipt["root"][:16] + "...")
 
-    chain.save("/tmp/bahi-honest.json")
+    chain.save(os.path.join(tempfile.gettempdir(), "bahi-honest.json"))
     p("chain saved, %d events, chain root %s" % (len(chain.events), root["root_hash"][:16]))
 
     p("")

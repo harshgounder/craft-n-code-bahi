@@ -5,10 +5,15 @@ from chain import BahiChain
 
 def balances(chain):
     """Replay every event, derive per-member loan balances.
-    contribution: member gives money (corpus up).
-    loan: member takes money from corpus (balance up).
-    repayment: member returns money (balance down).
-    Returns dict member -> {loaned_paise, repaid_paise, outstanding_paise}."""
+
+    Only loan and repayment events affect a member's balance:
+    - loan: member takes money from the corpus (outstanding up).
+    - repayment: member returns money (outstanding down).
+    Contributions and corrections are intentionally excluded.
+
+    Returns dict member -> {loaned_paise, repaid_paise, outstanding_paise}.
+    Note: outstanding can be negative (member repaid more than borrowed),
+    which exporter.py surfaces as an arithmetic_mismatch hint."""
     b = {}
     for ev in chain.events:
         if ev["type"] not in ("loan", "repayment"):
