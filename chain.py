@@ -187,8 +187,19 @@ def verify_receipt(chain, receipt):
     root_meta = chain.root_for(receipt.get("meeting", ""))
     if root_meta is None:
         return False, "meeting-root-missing"
+    # the MEETING-CLOSE event itself must exist in the chain and carry the
+    # receipt root (deleting the close event while keeping roots[] metadata
+    # is a silent fork: PR2 gap A, sujalsshukla)
+    close_seqs = [e["seq"] for e in chain.events if e.get("type") == "MEETING-CLOSE"]
+    if receipt.get("root_seq") not in close_seqs:
+        return False, "meeting-close-missing"
     if root_meta["root_hash"] != receipt.get("root"):
         return False, "FORK-AT-MEETING-%s" % receipt.get("meeting")
+    # terminality: nothing may follow this meeting's close event; a fake
+    # entry appended after close is not covered by the receipt (PR2 gap C)
+    last_ev = chain.events[-1]
+    if last_ev.get("type") != "MEETING-CLOSE" or last_ev.get("seq") != receipt.get("root_seq"):
+        return False, "events-after-close"
     sigs_now = root_meta.get("witnesses") or []
     sigs_then = receipt.get("witnesses") or []
     if len(sigs_then) < MIN_WITNESSES:

@@ -114,5 +114,19 @@ ok, det = verify_receipt(c2, receipt(c, root))
 t("corrupt chain -> structured fail (no crash)", not ok and ("corrupt" in det or "FORK" in det), det)
 os.unlink(fp)
 
+# 12. delete the MEETING-CLOSE event but keep roots[] metadata (PR2 gap A)
+c, root = make_chain()
+r12 = receipt_payload("G-RAJ-042", "M07", root, "Sita")
+c.events = [e for e in c.events if e.get("type") != "MEETING-CLOSE"]
+ok, det = verify_receipt(c, r12)
+t("delete MEETING-CLOSE -> meeting-close-missing", not ok and "meeting-close-missing" in det, det)
+
+# 13. append a fake entry AFTER the close event (PR2 gap C)
+c, root = make_chain()
+r13 = receipt_payload("G-RAJ-042", "M07", root, "Sita")
+c.add_event(99, "contribution", "Ghost", 10000, "2026-08-02T10:00:00")
+ok, det = verify_receipt(c, r13)
+t("append after close -> events-after-close", not ok and "events-after-close" in det, det)
+
 print("\n%d/%d PASSED (%d failed)" % (PASS, PASS + FAIL, FAIL))
 sys.exit(0 if FAIL == 0 else 1)
