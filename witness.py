@@ -10,7 +10,7 @@ offline member holding only a receipt cannot cryptographically check a witness
 signature herself; she can check the RECEIPT ROOT against the recomputed chain
 (the actual fraud signal). Witness signatures add a name-bound attestation that
 is verifiable by anyone who holds the group passphrase (secretary, auditor,
-federation node) — see verify_receipt(..., witness_keys=...).
+federation node) - see verify_receipt(..., witness_keys=...).
 """
 import hashlib, hmac, json
 

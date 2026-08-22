@@ -108,11 +108,11 @@ def hint_flags(chain):
         if repaid > loaned:
             flags.append({"hint": "arithmetic_mismatch", "meeting": mid,
                           "evidence": "repayments Rs %d exceed loans Rs %d in meeting" % (repaid, loaned)})
-        # B2: corpus insolvency — more money lent than was ever contributed
+        # B2: corpus insolvency - more money lent than was ever contributed
         if loaned > contributed:
             flags.append({"hint": "corpus_insolvency", "meeting": mid,
                           "evidence": "loans Rs %d exceed contributions Rs %d" % (loaned, contributed)})
-        # B1: repeat borrower — a member takes >=2 loans with no repayment
+        # B1: repeat borrower: a member takes >=2 loans with no repayment
         loan_counts = {}
         for e in evs:
             if e["type"] == "loan":
@@ -122,7 +122,7 @@ def hint_flags(chain):
             if cnt >= 2 and member not in repay_members:
                 flags.append({"hint": "repeat_borrower", "meeting": mid,
                               "evidence": "%s took %d loans with no repayment" % (member, cnt)})
-        # B3: orphan correction — a correction with no matching prior event
+        # B3: orphan correction: a correction with no matching prior event
         prior_amounts = {(e["member"], e["amount_paise"]) for e in evs
                          if e["type"] in ("loan", "repayment", "contribution")}
         for e in corrections:

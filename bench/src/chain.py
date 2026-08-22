@@ -306,8 +306,8 @@ def verify_receipt(chain, receipt, witness_keys=None):
     Checks (in order): chain not corrupt; full recompute; group binding; meeting
     root exists and its MEETING-CLOSE event is present in the chain and carries
     the receipt root; nothing follows the close (terminality); member binding;
-    witness quorum; witness subset; and — when `witness_keys` (a {name:
-    passphrase} map) is supplied — cryptographic verification of every witness
+    witness quorum; witness subset; and - when `witness_keys` (a {name:
+    passphrase} map) is supplied  - cryptographic verification of every witness
     signature (A02). Never crashes: corrupt input = fail with detail.
     """
     if chain.corrupt:

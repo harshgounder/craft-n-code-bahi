@@ -98,6 +98,6 @@ legacy = {"group": "G", "meeting": "M07", "root": root["root_hash"], "root_seq":
           "member_events": None}
 ok, det = verify_receipt(c, legacy)
 show("N8 legacy receipt (no member_events) only checks member-exists",
-     ok and det == "MATCH", "verify=%s (%s) — Geeta's receipt proves nothing about her lines" % (ok, det))
+     ok and det == "MATCH", "verify=%s (%s) - Geeta.s receipt proves nothing about her lines" % (ok, det))
 
 print("\nDone.")
