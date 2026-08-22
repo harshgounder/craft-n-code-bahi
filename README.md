@@ -49,6 +49,15 @@ loans.py   deterministic balances, rupees formatting
 server.py  demo web UI on port 8123
 tests.py   9/9 attack tests (edit, delete, reorder, tamper, forgery, ghost)
 demo.py    terminal demo runner
+attack/    adversarial suite: 2,157 cases (97 defense checks, 107 flaw reproductions,
+           1,900 seeded fuzz properties, 34 benchmarks, real-browser XSS proof)
+FINDINGS.md severity-ranked audit results, evidence + one-line fixes
+
+## Attack suite
+  python3 attack/run_all.py    # full suite (t_chain, t_receipt, t_witness, t_loans,
+                               # t_exporter, t_server, fuzz, bench) -> attack/results.json
+  python3 attack/xss_proof.py  # real headless-Chromium proof of the stored XSS
+Run before trusting any release. Every finding lives in FINDINGS.md with test IDs.
 
 ## Run it
   git clone <repo-url> && cd craft-n-code-bahi
