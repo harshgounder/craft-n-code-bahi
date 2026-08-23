@@ -187,18 +187,17 @@ def run():
     def st():
         return json.loads(req("/api/state")[1])
 
-    # Host guard residual: IPv6 listed but unreachable
+    # Host guard: IPv6 localhost works now (hostname parser handles brackets)
     st1, _ = req("/api/state", host="[::1]:8123")
     st2, _ = req("/api/state", host="::1")
-    t("VULN.v2.host-ipv6 allowlist includes ::1 but parser rejects every IPv6 Host form",
-      st1 == 403 and st2 == 403,
-      "hostname = host.split(':')[0] -> '[' or '' : the guard's own allowlist entry ::1 can never pass; IPv6 localhost users get permanent 403")
+    t("SAFE.v2.host-ipv6 [::1]:8123 accepted (parser fixed)", st1 == 200,
+      "[::1]:8123 -> %d (want 200); ::1 -> %d" % (st1, st2))
     st3, _ = req("/api/state", host="localhost.")
     t("chain.v2.host-trailing-dot 'localhost.' rejected (legit DNS form blocked)", st3 == 403, str(st3))
-    # Origin substring still passes when paired with valid Host (defense-in-depth gap)
+    # Origin exact-compare: evil.example with a 127.0.0.1 SUBSTRING inside is rejected
     st4, _ = req("/api/state", host="127.0.0.1:8123", origin="http://evil.example/?u=http://127.0.0.1:8123")
-    t("VULN.v2.origin-substring Origin containing '127.0.0.1' anywhere still passes", st4 == 200,
-      "Origin check remains substring-based: no exact-origin compare, no Sec-Fetch-Site check")
+    t("SAFE.v2.origin-exact evil Origin with 127.0.0.1 substring rejected", st4 == 403,
+      "Origin check is exact-compare (PR10): substring inside a foreign Origin does not pass")
     # GET CSRF: state-changing GET still executes after close when Origin absent
     srv.rebuild()
     req("/api/close")

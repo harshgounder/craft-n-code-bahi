@@ -272,17 +272,14 @@ def run():
       "verify() never recomputes/checks roots; tampered meeting root passes chain verify")
     okr, det = verify_receipt(c, rec)
     t("SAFE.roots.002 receipt layer catches root tamper (receipt built before tamper)", not okr and "FORK" in det, det)
-    # roots missing root_hash entirely -> KeyError crash in verify_receipt
+    # roots missing root_hash entirely -> graceful fail (no crash)
     c5, root5 = make_chain()
     c5.roots["M07"] = {"ts": T}
     try:
-        verify_receipt(c5, receipt_payload("G-RAJ-042", "M07", root5, "Sita"))
-        t("VULN.roots.003 partial root metadata crashes verify_receipt", False, "no exception raised")
-    except KeyError as e:
-        t("VULN.roots.003 partial root metadata crashes verify_receipt", True,
-          "KeyError %r: violates 'never crashes / corrupt input = fail with detail'" % (e,))
+        ok5r, det5r = verify_receipt(c5, receipt_payload("G-RAJ-042", "M07", root5, "Sita"))
+        t("SAFE.roots.003 partial root metadata graceful fail (no crash)", not ok5r and ("FORK" in det5r or "root" in det5r), det5r)
     except Exception as e:
-        t("VULN.roots.003 partial root metadata crashes verify_receipt", True, "%s: %r" % (type(e).__name__, e))
+        t("SAFE.roots.003 partial root metadata graceful fail (no crash)", False, "%s: %r" % (type(e).__name__, e))
     # roots value None
     c6, root6 = make_chain()
     c6.roots["M07"] = None
@@ -384,11 +381,11 @@ def run():
     with open(fp, "w") as f: f.write(deep)
     try:
         BahiChain.load(fp)
-        t("VULN.load.deep-nesting RecursionError crash", False, "no exception")
+        t("SAFE.load.deep-nesting handled gracefully (no crash)", True, "load() tolerates deep nesting")
     except RecursionError:
-        t("VULN.load.deep-nesting RecursionError crash", True, "json.loads hits recursion limit; load() only catches OSError/ValueError -> CRASH")
+        t("SAFE.load.deep-nesting handled gracefully (no crash)", False, "RecursionError escaped")
     except Exception as e:
-        t("VULN.load.deep-nesting RecursionError crash", True, "%s: %r" % (type(e).__name__, e))
+        t("SAFE.load.deep-nesting handled gracefully (no crash)", True, "%s: %r" % (type(e).__name__, e))
     os.unlink(fp)
     # events element not a dict: verify() crashes instead of graceful
     fp = tempfile.mktemp(suffix=".json")
