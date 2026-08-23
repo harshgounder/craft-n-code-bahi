@@ -244,6 +244,7 @@ INDEX_HTML = r"""<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%23F1E7CE'/><text x='8' y='12.5' font-size='11' text-anchor='middle' fill='%239A5608' font-family='Georgia'>₹</text></svg>">
 <meta name="description" content="BAHI: member-witnessed offline ledger for Indian self-help groups. SHA-256 chain, signed meeting roots, member receipts, fork detection.">
 <title>BAHI - the witnessed ledger</title>
 <style>
