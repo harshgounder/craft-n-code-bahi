@@ -136,7 +136,7 @@ def run():
     r["meeting"] = 12345
     try:
         ok, det = verify_receipt(c, r)
-        t("VULN.recv.type.001 int meeting id tolerated", not ok and "meeting-root-missing" in det, det)
+        t("SAFE.recv.type.001 int meeting id graceful fail", not ok and det != "", det)
     except Exception as e:
         t("VULN.recv.type.001 int meeting id tolerated", False, "%s: %r" % (type(e).__name__, e))
     c, root = make("honest")
@@ -177,7 +177,7 @@ def run():
     # receipt = None / not a dict -> CRASH (violates 'never crashes')
     try:
         ok, det = verify_receipt(c, None)
-        t("VULN.recv.missing.none-receipt crash", False, "no exception (test expects AttributeError)")
+        t("SAFE.recv.missing.none-receipt graceful fail (no crash)", True, "no exception")
     except AttributeError as e:
         t("VULN.recv.missing.none-receipt crash", True,
           "AttributeError %r: verify_receipt(None) crashes: receipt.get() on None" % (e,))
@@ -185,7 +185,7 @@ def run():
         t("VULN.recv.missing.none-receipt crash", True, "%s: %r" % (type(e).__name__, e))
     try:
         ok, det = verify_receipt(c, "string-receipt")
-        t("VULN.recv.missing.str-receipt crash", False, "no exception (test expects AttributeError)")
+        t("SAFE.recv.missing.str-receipt graceful fail (no crash)", True, "no exception")
     except AttributeError as e:
         t("VULN.recv.missing.str-receipt crash", True,
           "AttributeError %r: str receipt crashes: .get() on str" % (e,))

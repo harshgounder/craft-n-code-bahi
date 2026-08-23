@@ -49,8 +49,7 @@ def run():
     st, _h, body = req("/")
     t("SAFE.http.base.002 index serves HTML", st == 200 and "BAHI" in body, str(st))
     st, _h, body = req("/nonexistent")
-    t("VULN.http.base.003 unknown path serves the app (no 404)", st == 200 and "BAHI" in body,
-      "every unknown URL returns the demo HTML: no 404, no route distinction")
+    t("SAFE.http.base.003 unknown path -> 404 (route distinction)", st == 404, str(st))
     st, hdrs, body = req("/api/state")
     t("SAFE.http.base.004 JSON content-type", hdrs.get("Content-Type", "").startswith("application/json"), str(hdrs.get("Content-Type")))
 
@@ -141,21 +140,19 @@ def run():
             t("SAFE.http.host.%r rejected" % host, st == 403, str(st))
     # PR6 parser hole: split(':')[0] strips port, suffix after port still passes
     st, _, _ = req("/api/state", host="127.0.0.1:8123.attacker.com")
-    t("VULN.http.host.port-suffix '127.0.0.1:8123.attacker.com' accepted (split(:)[0] strips everything after the port)",
-      st == 200,
-      "hostname = host.split(':')[0] = '127.0.0.1': any Host starting '127.0.0.1:' + arbitrary suffix passes; naive split, not a real hostname parse (browser-unreachable via DNS today, but the guard's intent is broken and any 0.0.0.0 bind makes it live)")
+    t("SAFE.http.host.port-suffix '127.0.0.1:8123.attacker.com' rejected (exact hostname parse)",
+      st == 403, str(st))
     for origin, expect in (
         ("http://127.0.0.1:8123", 200), ("http://localhost:8123", 200),
-        ("http://127.0.0.1.evil.com", 200),
-        ("http://evil.example/?u=http://127.0.0.1:8123", 200),
+        ("http://127.0.0.1.evil.com", 403),
+        ("http://evil.example/?u=http://127.0.0.1:8123", 403),
         ("https://evil.com", 403),
     ):
         st, _, _ = req("/api/state", origin=origin)
         if expect == 200:
-            t("VULN.http.origin.%r accepted (substring check)" % origin, st == 200,
-              "Origin guard is still a SUBSTRING check ('127.0.0.1' anywhere passes): not an exact-origin compare")
+            t("SAFE.http.origin.%r accepted (exact-origin compare)" % origin, st == 200, str(st))
         else:
-            t("SAFE.http.origin.%r rejected" % origin, st == 403, str(st))
+            t("SAFE.http.origin.%r rejected (exact-origin compare)" % origin, st == 403, str(st))
     st, _, _ = req("/api/entry?type=contribution&paise=1")
     t("VULN.http.origin.none missing Origin header passes state-changing request",
       st == 200, "Origin absent (img/form GET) -> guard skipped entirely: GET-CSRF path survives the Host fix")
@@ -179,11 +176,11 @@ def run():
 
     # -------- path weirdness --------
     st, _h, body = req("/api/../api/state")
-    t("chain.http.path.001 dotdot path no traversal (serves HTML)", st == 200 and "BAHI" in body)
+    t("chain.http.path.001 dotdot path no traversal (404)", st == 404, str(st))
     st, _h, body = req("/%61pi/state")
-    t("chain.http.path.002 percent-encoded path not decoded", st == 200 and "BAHI" in body)
+    t("chain.http.path.002 percent-encoded path not decoded (404)", st == 404, str(st))
     st, _h, body = req("/api/state%00.png")
-    t("chain.http.path.003 null byte in path", st == 200)
+    t("chain.http.path.003 null byte in path (404)", st == 404, str(st))
 
     # -------- repeated operations (open-meeting flow) --------
     srv.rebuild()
