@@ -188,8 +188,8 @@ class Handler(BaseHTTPRequestHandler):
                 paise = int(qs.get("paise", ["10000"])[0])
             except ValueError:
                 paise = 10000
-            if paise < 0:
-                paise = 0
+            if paise < 0 or paise > 10**9:
+                paise = min(max(paise, 0), 10**9)   # clamp fuzz amounts to Rs 1 crore ceiling
             chain = STATE["chain"]
             member = "Sita"
             try:
@@ -489,9 +489,10 @@ const TYPES = [
 ];
 let selType = TYPES[0];
 const $=id=>document.getElementById(id);
+function rs(p){p=Math.min(Math.max(0,p),1e9);var n=Math.floor(p/100),s=String(n);if(s.length>3){var l3=s.slice(-3),r=s.slice(0,-3),g=[];while(r.length>2){g.unshift(r.slice(-2));r=r.slice(0,-2);}if(r){g.unshift(r);}s=g.join(",")+","+l3;}return "Rs "+s;}
 
 function phrase(){
-  const t=selType, m="Sita", amt=t.paise?("Rs "+(t.paise/100).toFixed(0)):"the reversal";
+  const t=selType, m="Sita", amt=t.paise?rs(t.paise):"the reversal";
   const p={contribution:"deposits",loan:"borrows",repayment:"repays",correction:"flags a correction for"}[t.t];
   return "Voice repeat: “"+(t.t==="correction"?m+" "+p+" "+amt:m+" "+p+" "+amt)+"”";
 }
@@ -545,7 +546,7 @@ async function refresh(){
   if(s.verdict===true&&s.events){s.events.forEach(e=>{if(e.type!=="MEETING-CLOSE")__seen[e.seq]=e.amount_paise;});}
   if(s.verdict===false){
     const diffs=Object.keys(__seen).filter(seq=>s.events.some(e=>e.seq==seq&&e.amount_paise!==__seen[seq]))
-      .map(seq=>{const e=s.events.find(x=>x.seq==seq);return "event "+seq+": Rs "+(__seen[seq]/100).toFixed(0)+" differs from chain Rs "+(e.amount_paise/100).toFixed(0);});
+      .map(seq=>{const e=s.events.find(x=>x.seq==seq);return "event "+seq+": "+rs(__seen[seq])+" differs from chain "+rs(e.amount_paise);});
     if(diffs.length){
       $("lastDetail").textContent="Receipt remembers: "+diffs.join("; ");
       const st=$("verdict").querySelector(".why");
@@ -557,7 +558,7 @@ async function refresh(){
   $("tally").innerHTML="<b>"+liveCount+"</b> events · state: <b>"+(s.verdict===undefined||s.verdict===null?"PENDING":(s.verdict?"MATCH":"FORK"))+"</b> · meetings closed: "+closedMeetings+(r&&r.meeting?" · receipt for "+r.meeting:"");
   $("chainbody").innerHTML=s.events.map((e,i)=>{
     const isClose=e.type==="MEETING-CLOSE", isBad=e.type!=="MEETING-CLOSE"&&s.verdict===false&&i===(s.detail.match(/EVENT-([0-9]+)/)||[])[1]-1;
-    return "<tr id='row-"+e.seq+"' class='"+(isClose?"meet":isBad?"bad":"")+"'><td>"+e.seq+"</td><td>"+(isClose?"MEETING CLOSE":esc(e.type))+"</td><td>"+esc(e.member)+"</td><td>"+(isClose?"-":(isBad?"<b>Rs "+(e.amount_paise/100).toFixed(0)+"</b> <span style='font-family:var(--mono);font-size:9.5px;text-transform:uppercase;border:1px solid currentColor;border-radius:3px;padding:0 4px'>altered</span>":"Rs "+(e.amount_paise/100).toFixed(0)))+"</td><td class='mono' title='"+esc(e.ts)+"'>"+esc(e.ts)+"</td><td class='mono' title='full hash: "+esc(e.hash)+"'>"+String(e.hash).slice(0,14)+"…</td></tr>";
+return "<tr id='row-"+e.seq+"' class='"+(isClose?"meet":isBad?"bad":"")+"'><td>"+e.seq+"</td><td>"+(isClose?"MEETING CLOSE":esc(e.type))+"</td><td>"+esc(e.member)+"</td><td>"+(isClose?"-":(isBad?"<b>"+rs(e.amount_paise)+"</b> <span style='font-family:var(--mono);font-size:9.5px;text-transform:uppercase;border:1px solid currentColor;border-radius:3px;padding:0 4px'>altered</span>":rs(e.amount_paise)))+"</td><td class='mono' title='"+esc(e.ts)+"'>"+esc(e.ts)+"</td><td class='mono' title='full hash: "+esc(e.hash)+"'>"+String(e.hash).slice(0,14)+"…</td></tr>";
   }).join("");
 
   // loans
@@ -565,7 +566,7 @@ async function refresh(){
   $("loans").innerHTML=bs.length?bs.map(b=>{
     const pct=Math.min(100,Math.round(100*(b.repaid_paise/(b.loaned_paise||1))));
     const av=b.member.slice(0,2).toUpperCase();
-    return "<div class='loan'><div class='av'>"+av+"</div><div><div class='nm'><span>"+esc(b.member)+"</span><span>"+(b.outstanding_paise>0?"<span class='due'>Rs "+(b.outstanding_paise/100).toFixed(0)+" due</span>":(b.overpaid_paise||0)>0?"<span class='tag'>overpaid Rs "+(b.overpaid_paise/100).toFixed(0)+"</span>":"<span class='tag'>clear</span>")+"</span></div><div class='bar'><i style='width:"+pct+"%'></i></div><div class='meta'>loaned Rs "+(b.loaned_paise/100).toFixed(0)+" · repaid Rs "+(b.repaid_paise/100).toFixed(0)+" · "+pct+"% repaid</div></div></div>";
+return "<div class='loan'><div class='av'>"+av+"</div><div><div class='nm'><span>"+esc(b.member)+"</span><span>"+(b.outstanding_paise>0?"<span class='due'>"+rs(b.outstanding_paise)+" due</span>":(b.overpaid_paise||0)>0?"<span class='tag'>overpaid "+rs(b.overpaid_paise)+"</span>":"<span class='tag'>clear</span>")+"</span></div><div class='bar'><i style='width:"+pct+"%'></i></div><div class='meta'>loaned "+rs(b.loaned_paise)+" · repaid "+rs(b.repaid_paise)+" · "+pct+"% repaid</div></div></div>";
   }).join(""):"<div class='sub'>no loans yet</div>";
   // hints
   const ex=await (await fetch("/api/export")).json();
@@ -583,7 +584,7 @@ $("confirmBtn").onclick=async()=>{
   const r=await fetch("/api/entry?type="+encodeURIComponent(selType.t)+"&paise="+selType.paise);
   const j=await r.json();
   $("confirmBtn").disabled=false; $("confirmBtn").textContent="Green tick: confirm entry";
-  if(j.ok){$("repeat").textContent="✓ recorded: Sita "+selType.t+" Rs "+(selType.paise/100).toFixed(0)+" · seq "+j.event.seq+" · "+j.detail;refresh();}
+  if(j.ok){$("repeat").textContent="✓ recorded: Sita "+selType.t+" "+rs(selType.paise)+" · seq "+j.event.seq+" · "+j.detail;refresh();}
   else alert(j.detail||j.error||"entry failed");
 };
 $("closeBtn").onclick=async()=>{const r=await(await fetch("/api/close")).json();if(r.ok){$("repeat").textContent="✓ meeting "+r.meeting+" closed · witnesses Meera+Laxmi signed · "+r.detail;refresh();}};
